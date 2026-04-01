@@ -4,7 +4,6 @@ import { Role } from "../generated/prisma/enums.js";
 import { ApiError } from "../utils/api-error.js";
 
 export class AuthMiddleware {
-  //Digunakan untuk mengecek token yang dikirim dari user valid atau tidak
   verifyToken = (secretKey: string) => {
     return (req: Request, res: Response, next: NextFunction) => {
       const authHeader = req.headers.authorization;
@@ -42,7 +41,6 @@ export class AuthMiddleware {
         const userRole = res.locals.existingUser?.role;
 
         if (!userRole || !roles.includes(userRole)) {
-          // Gunakan next() untuk error agar ditangkap oleh global error handler
           return next(
             new ApiError("You don't have access to this resource", 403),
           );
