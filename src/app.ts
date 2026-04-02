@@ -2,15 +2,15 @@ import cookieParser from "cookie-parser";
 import cors from "cors";
 import express from "express";
 import { corsOptions } from "./config/cors.js";
-import { prisma } from "./lib/prisma.js";
-import { AuthMiddleware } from "./middlewares/auth.middleware.js";
 import {
   errorMiddleware,
   notFoundMiddleware,
 } from "./middlewares/error.middleware.js";
-import { UploadMiddleware } from "./middlewares/upload.middleware.js";
-import { ValidationMiddleware } from "./middlewares/validation.middleware.js";
 import { loggerHttp } from "./lib/logger-http.js";
+import { AuthRouter } from "./modules/auth/auth.routes.js";
+import { CompanyRouter } from "./modules/company/company.routes.js";
+import { JobRouter } from "./modules/job/job.routes.js";
+import { UserRouter } from "./modules/user/user.routes.js";
 
 const PORT = 8000;
 
@@ -32,21 +32,19 @@ export class App {
   };
 
   private registerModules = () => {
-    // shared dependency
-    const prismaClient = prisma;
-
-    // services
-
-    // controllers
-
-    //middlewares
-    const authMiddleware = new AuthMiddleware();
-    const validationMiddleware = new ValidationMiddleware();
-    const uploadMiddleware = new UploadMiddleware();
-
     // routes
+    const authRouter = new AuthRouter();
+    const userRouter = new UserRouter();
+    const companyRouter = new CompanyRouter();
+    const jobRouter = new JobRouter();
 
     // entry point
+    this.app.get("/health", (_req, res) => res.status(200).json({ ok: true }));
+
+    this.app.use("/auth", authRouter.getRouter());
+    this.app.use("/users", userRouter.getRouter());
+    this.app.use("/companies", companyRouter.getRouter());
+    this.app.use("/jobs", jobRouter.getRouter());
   };
 
   private handleError = () => {
