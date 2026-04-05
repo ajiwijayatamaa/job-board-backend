@@ -7,18 +7,18 @@ import {
   notFoundMiddleware,
 } from "./middlewares/error.middleware.js";
 import { loggerHttp } from "./lib/logger-http.js";
-
 import { PreSelectionTestService } from "./modules/pre-selection-test/pre-selection-test.service.js";
 import { PreSelectionTestController } from "./modules/pre-selection-test/pre-selection-test.controller.js";
 import { PreSelectionTestRouter } from "./modules/pre-selection-test/pre-selection-test.router.js";
-import { AuthRouter } from "./modules/auth/auth.routes.js";
-import { CompanyRouter } from "./modules/company/company.routes.js";
+import { AuthRouter } from "./modules/auth/auth.router.js";
+import { CompanyRouter } from "./modules/company/company.router.js";
 import { JobRouter } from "./modules/job/job.routes.js";
-import { UserRouter } from "./modules/user/user.routes.js";
+import { UserRouter } from "./modules/user/user.router.js";
 import { ValidationMiddleware } from "./middlewares/validation.middleware.js";
 import { AuthMiddleware } from "./middlewares/auth.middleware.js";
 import { prisma } from "./lib/prisma.js";
 import { UploadMiddleware } from "./middlewares/upload.middleware.js";
+import { CVRouter } from "./modules/cv/cv.router.js";
 
 const PORT = 8000;
 
@@ -67,14 +67,14 @@ export class App {
     const userRouter = new UserRouter();
     const companyRouter = new CompanyRouter();
     const jobRouter = new JobRouter();
+    const cvRouter = new CVRouter();
 
     // entry point
-    this.app.get("/health", (_req, res) => res.status(200).json({ ok: true }));
     this.app.use("/auth", authRouter.getRouter());
     this.app.use("/users", userRouter.getRouter());
     this.app.use("/companies", companyRouter.getRouter());
     this.app.use("/jobs", jobRouter.getRouter());
-    // entry point preselestion test
+    this.app.use("/cvs", cvRouter.getRouter());
     this.app.use("/pre-selection-tests", preSelectionTestRouter.getRouter());
   };
 
