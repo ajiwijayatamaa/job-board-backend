@@ -67,10 +67,7 @@ export class AuthService {
       throw new ApiError("Invalid email or password", 400);
     }
 
-    const isValidPassword = await comparePassword(
-      user.password,
-      body.password
-    );
+    const isValidPassword = await comparePassword(body.password, user.password);
 
     if (!isValidPassword) {
       throw new ApiError("Invalid email or password", 400);
@@ -90,11 +87,7 @@ export class AuthService {
     };
   }
 
-  private generateToken(user: {
-    id: number;
-    email: string;
-    role: Role;
-  }) {
+  private generateToken(user: { id: number; email: string; role: Role }) {
     return jwt.sign(
       {
         id: user.id,
@@ -102,7 +95,7 @@ export class AuthService {
         role: user.role,
       },
       process.env.JWT_SECRET as string,
-      { expiresIn: "20m" }
+      { expiresIn: "20m" },
     );
   }
 }
