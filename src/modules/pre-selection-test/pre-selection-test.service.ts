@@ -128,67 +128,80 @@ export class PreSelectionTestService {
     });
     if (!test) throw new ApiError("Pre selection test tidak ditemukan", 404);
 
-    // Pastikan user punya application untuk job ini
-    const application = await this.prisma.application.findFirst({
-      where: { jobId, userId },
+    // Cek apakah user sudah pernah melamar dan punya hasil tes untuk job ini
+    const existingResult = await this.prisma.testResult.findFirst({
+      where: {
+        preSelectionTestId: test.id,
+        application: { userId: userId },
+      },
     });
-    if (!application)
-      throw new ApiError("Anda belum melamar pekerjaan ini", 403);
 
-    // Cek apakah sudah pernah submit
-    const alreadySubmitted = await this.prisma.testResult.findUnique({
-      where: { applicationId: application.id },
-    });
-    if (alreadySubmitted)
-      throw new ApiError("Anda sudah mengerjakan tes ini", 400);
+    if (existingResult)
+      throw new ApiError("Anda sudah mengerjakan tes untuk lowongan ini", 400);
 
     return test;
   };
 
-  // Submit jawaban dan hitung skor
-  submitTest = async (body: SubmitTestDTO, userId: number) => {
-    // Verifikasi application milik user
-    const application = await this.prisma.application.findFirst({
-      where: { id: body.applicationId, userId },
-      include: { job: true },
-    });
-    if (!application)
-      throw new ApiError("Lamaran tidak ditemukan atau bukan milik Anda", 404);
+  // Pastikan SubmitTestDTO di file .dto.ts sudah menyertakan jobId dan cvId
+  submitTest = async (body: any, userId: number) => {
+    const { jobId, cvId, answers, expectedSalary } = body;
 
-    // Ambil pre selection test berdasarkan jobId
+    // 1. Ambil data tes berdasarkan JobId
     const test = await this.prisma.preSelectionTest.findFirst({
-      where: { jobId: application.jobId },
+      where: { jobId },
       include: { questions: true },
     });
+
     if (!test) throw new ApiError("Pre selection test tidak ditemukan", 404);
 
-    // Cek sudah pernah submit
-    const alreadySubmitted = await this.prisma.testResult.findUnique({
-      where: { applicationId: body.applicationId },
+    // 2. Cek apakah user sudah pernah punya TestResult untuk job ini
+    const existingResult = await this.prisma.testResult.findFirst({
+      where: {
+        preSelectionTestId: test.id,
+        application: { userId },
+      },
     });
-    if (alreadySubmitted)
+
+    if (existingResult)
       throw new ApiError("Anda sudah mengerjakan tes ini", 400);
 
-    // Hitung skor
+    // 3. Hitung skor
     let correctCount = 0;
-    for (const answer of body.answers) {
+    for (const answer of answers) {
       const question = test.questions.find((q) => q.id === answer.questionId);
-      if (!question)
-        throw new ApiError(
-          `Soal dengan id ${answer.questionId} tidak ditemukan`,
-          400,
-        );
-      if (question.correctAnswer === answer.selectedAnswer) correctCount++;
+      if (question && question.correctAnswer === answer.selectedAnswer) {
+        correctCount++;
+      }
     }
-    const score = (correctCount / 25) * 100;
 
-    // Simpan hasil
-    return await this.prisma.testResult.create({
-      data: {
-        preSelectionTestId: test.id,
-        applicationId: body.applicationId,
-        score,
-      },
+    // Gunakan total soal yang ada di DB, jangan hardcode 25 agar lebih fleksibel
+    const totalQuestions = test.questions.length;
+    const score = (correctCount / totalQuestions) * 100;
+
+    // 4. TRANSACTION: Buat Application dan TestResult sekaligus
+    return await this.prisma.$transaction(async (tx) => {
+      // Buat data lamaran (Application)
+      const newApplication = await tx.application.create({
+        data: {
+          userId,
+          jobId,
+          cvId,
+          expectedSalary,
+          status: "PENDING", // Lamaran masuk dengan status pending
+        },
+      });
+
+      // Buat data hasil tes (TestResult) yang terhubung ke application tadi
+      return await tx.testResult.create({
+        data: {
+          preSelectionTestId: test.id,
+          applicationId: newApplication.id,
+          score,
+        },
+        include: {
+          application: true, // Sertakan data lamaran di return value
+        },
+      });
     });
   };
 
