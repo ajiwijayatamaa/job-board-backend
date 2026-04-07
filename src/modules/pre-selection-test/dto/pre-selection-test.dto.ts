@@ -82,7 +82,15 @@ export class AnswerItemDTO {
 export class SubmitTestDTO {
   @IsNotEmpty()
   @IsNumber()
-  applicationId!: number;
+  jobId!: number;
+
+  @IsNotEmpty()
+  @IsNumber()
+  cvId!: number; // Tambahkan cvId untuk proses melamar
+
+  @IsOptional()
+  @IsNumber()
+  expectedSalary?: number;
 
   @IsArray()
   @ArrayMinSize(25)
