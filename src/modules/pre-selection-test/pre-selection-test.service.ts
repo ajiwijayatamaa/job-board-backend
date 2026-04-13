@@ -106,14 +106,16 @@ export class PreSelectionTestService {
         where: { id: test.jobId },
         data: { preTest: false },
       });
-      return await tx.preSelectionTest.delete({ where: { id } });
+      await tx.preSelectionTest.delete({ where: { id } });
+
+      return { message: "Pre selection test berhasil dihapus" };
     });
   };
 
   // Ambil soal untuk dikerjakan user (tanpa correctAnswer)
   takeTest = async (jobId: number, userId: number) => {
     const test = await this.prisma.preSelectionTest.findFirst({
-      where: { jobId },
+      where: { jobId, job: { preTest: true } },
       include: {
         questions: {
           select: {
