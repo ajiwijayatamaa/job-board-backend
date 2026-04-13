@@ -77,12 +77,17 @@ export class PreSelectionTestService {
       throw new ApiError("Soal harus berjumlah tepat 25", 400);
 
     return await this.prisma.$transaction(async (tx) => {
-      await tx.testQuestion.deleteMany({ where: { testId: id } });
+      if (body.questions) {
+        await tx.testQuestion.deleteMany({ where: { testId: id } });
+      }
+
       return await tx.preSelectionTest.update({
         where: { id },
         data: {
           title: body.title,
-          questions: { create: this.mapQuestions(body.questions!) },
+          ...(body.questions && {
+            questions: { create: this.mapQuestions(body.questions) },
+          }),
         },
         include: { questions: { include: { options: true } } },
       });

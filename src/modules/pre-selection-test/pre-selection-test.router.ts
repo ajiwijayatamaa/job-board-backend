@@ -36,7 +36,7 @@ export class PreSelectionTestRouter {
       this.preSelectionTestController.getTestByJobId,
     );
 
-    this.router.put(
+    this.router.patch(
       "/:id",
       this.authMiddleware.verifyToken(process.env.JWT_SECRET!),
       this.authMiddleware.verifyRole(["ADMIN"]),
