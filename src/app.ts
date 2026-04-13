@@ -19,6 +19,8 @@ import { ValidationMiddleware } from "./middlewares/validation.middleware.js";
 import { AuthMiddleware } from "./middlewares/auth.middleware.js";
 import { prisma } from "./lib/prisma.js";
 import { UploadMiddleware } from "./middlewares/upload.middleware.js";
+import { ApplicationRouter } from "./modules/application/application.router.js";
+import { CVRouter } from "./modules/cv/cv.router.js";
 
 const PORT = 8000;
 
@@ -67,13 +69,16 @@ export class App {
     const userRouter = new UserRouter();
     const companyRouter = new CompanyRouter();
     const jobRouter = new JobRouter();
+    const cvRouter = new CVRouter();
+    const applicationsRouter = new ApplicationRouter();
 
     // entry point
-    this.app.get("/health", (_req, res) => res.status(200).json({ ok: true }));
     this.app.use("/auth", authRouter.getRouter());
     this.app.use("/users", userRouter.getRouter());
     this.app.use("/companies", companyRouter.getRouter());
     this.app.use("/jobs", jobRouter.getRouter());
+    this.app.use("/cvs", cvRouter.getRouter());
+    this.app.use("/applications", applicationsRouter.getRouter());
     // entry point preselestion test
     this.app.use("/pre-selection-tests", preSelectionTestRouter.getRouter());
   };
