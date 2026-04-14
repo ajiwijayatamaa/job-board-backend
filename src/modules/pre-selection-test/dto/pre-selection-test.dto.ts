@@ -12,44 +12,44 @@ import {
 } from "class-validator";
 
 export class CreateTestOptionDTO {
-  @IsNotEmpty()
-  @IsString()
+  @IsNotEmpty({ message: "Teks opsi tidak boleh kosong" })
+  @IsString({ message: "Teks opsi harus berupa string" })
   optionText!: string;
 
-  @IsNotEmpty()
-  @IsBoolean()
+  @IsNotEmpty({ message: "isCorrect tidak boleh kosong" })
+  @IsBoolean({ message: "isCorrect harus berupa boolean" })
   isCorrect!: boolean;
 }
 
 export class CreateTestQuestionDTO {
-  @IsNotEmpty()
-  @IsString()
+  @IsNotEmpty({ message: "Teks soal tidak boleh kosong" })
+  @IsString({ message: "Teks soal harus berupa string" })
   questionText!: string;
 
-  @IsNotEmpty()
-  @IsString()
+  @IsNotEmpty({ message: "Jawaban benar tidak boleh kosong" })
+  @IsString({ message: "Jawaban benar harus berupa string" })
   correctAnswer!: string;
 
-  @IsArray()
-  @ArrayMinSize(2)
-  @ArrayMaxSize(5)
+  @IsArray({ message: "Opsi jawaban harus berupa array" })
+  @ArrayMinSize(2, { message: "Opsi jawaban minimal 2" })
+  @ArrayMaxSize(5, { message: "Opsi jawaban maksimal 5" })
   @ValidateNested({ each: true })
   @Type(() => CreateTestOptionDTO)
   options!: CreateTestOptionDTO[];
 }
 
 export class CreatePreSelectionTestDTO {
-  @IsNotEmpty()
-  @IsNumber()
+  @IsNotEmpty({ message: "Job ID tidak boleh kosong" })
+  @IsNumber({}, { message: "Job ID harus berupa angka" })
   jobId!: number;
 
-  @IsNotEmpty()
-  @IsString()
+  @IsNotEmpty({ message: "Judul tidak boleh kosong" })
+  @IsString({ message: "Judul harus berupa string" })
   title!: string;
 
-  @IsArray()
-  @ArrayMinSize(25)
-  @ArrayMaxSize(25)
+  @IsArray({ message: "Soal harus berupa array" })
+  @ArrayMinSize(25, { message: "Soal harus berjumlah tepat 25" })
+  @ArrayMaxSize(25, { message: "Soal harus berjumlah tepat 25" })
   @ValidateNested({ each: true })
   @Type(() => CreateTestQuestionDTO)
   questions!: CreateTestQuestionDTO[];
@@ -57,44 +57,36 @@ export class CreatePreSelectionTestDTO {
 
 export class UpdatePreSelectionTestDTO {
   @IsOptional()
-  @IsString()
+  @IsString({ message: "Judul harus berupa string" })
   title?: string;
 
   @IsOptional()
-  @IsArray()
-  @ArrayMinSize(25)
-  @ArrayMaxSize(25)
+  @IsArray({ message: "Soal harus berupa array" })
+  @ArrayMinSize(25, { message: "Soal harus berjumlah tepat 25" })
+  @ArrayMaxSize(25, { message: "Soal harus berjumlah tepat 25" })
   @ValidateNested({ each: true })
   @Type(() => CreateTestQuestionDTO)
   questions?: CreateTestQuestionDTO[];
 }
 
 export class AnswerItemDTO {
-  @IsNotEmpty()
-  @IsNumber()
+  @IsNotEmpty({ message: "ID soal tidak boleh kosong" })
+  @IsNumber({}, { message: "ID soal harus berupa angka" })
   questionId!: number;
 
-  @IsNotEmpty()
-  @IsString()
+  @IsNotEmpty({ message: "Jawaban tidak boleh kosong" })
+  @IsString({ message: "Jawaban harus berupa string" })
   selectedAnswer!: string;
 }
 
 export class SubmitTestDTO {
-  @IsNotEmpty()
-  @IsNumber()
+  @IsNotEmpty({ message: "Job ID tidak boleh kosong" })
+  @IsNumber({}, { message: "Job ID harus berupa angka" })
   jobId!: number;
 
-  @IsNotEmpty()
-  @IsNumber()
-  cvId!: number; // Tambahkan cvId untuk proses melamar
-
-  @IsOptional()
-  @IsNumber()
-  expectedSalary?: number;
-
-  @IsArray()
-  @ArrayMinSize(25)
-  @ArrayMaxSize(25)
+  @IsArray({ message: "Jawaban harus berupa array" })
+  @ArrayMinSize(25, { message: "Jawaban harus berjumlah tepat 25" })
+  @ArrayMaxSize(25, { message: "Jawaban harus berjumlah tepat 25" })
   @ValidateNested({ each: true })
   @Type(() => AnswerItemDTO)
   answers!: AnswerItemDTO[];

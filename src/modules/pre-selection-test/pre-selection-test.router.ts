@@ -62,6 +62,7 @@ export class PreSelectionTestRouter {
     this.router.get(
       "/take/:jobId",
       this.authMiddleware.verifyToken(process.env.JWT_SECRET!),
+      this.authMiddleware.verifyVerified(),
       this.authMiddleware.verifyRole(["USER"]),
       this.preSelectionTestController.takeTest,
     );
@@ -69,6 +70,7 @@ export class PreSelectionTestRouter {
     this.router.post(
       "/submit",
       this.authMiddleware.verifyToken(process.env.JWT_SECRET!),
+      this.authMiddleware.verifyVerified(),
       this.authMiddleware.verifyRole(["USER"]),
       this.validationMiddleware.validateBody(SubmitTestDTO),
       this.preSelectionTestController.submitTest,

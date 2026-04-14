@@ -19,7 +19,7 @@ export class ApplicationService {
 
     throw new ApiError(
       "Invalid status. Use PENDING, PROCESSED, INTERVIEW, ACCEPTED, or REJECTED",
-      400
+      400,
     );
   }
 
@@ -32,7 +32,7 @@ export class ApplicationService {
 
   async apply(
     userId: number,
-    body: { jobId: number; cvId: number; expectedSalary?: number | string }
+    body: { jobId: number; cvId: number; expectedSalary?: number | string },
   ) {
     const job = await prisma.job.findUnique({
       where: { id: body.jobId },
@@ -95,10 +95,16 @@ export class ApplicationService {
 
   async getMyApplications(
     userId: number,
-    query?: { take?: number; page?: number; status?: ApplicationStatus | string }
+    query?: {
+      take?: number;
+      page?: number;
+      status?: ApplicationStatus | string;
+    },
   ) {
     const { take, page, skip } = this.normalizePagination(query);
-    const status = query?.status ? this.normalizeStatus(query.status) : undefined;
+    const status = query?.status
+      ? this.normalizeStatus(query.status)
+      : undefined;
 
     const where = {
       userId,
@@ -158,7 +164,11 @@ export class ApplicationService {
   async getApplicantsByJob(
     adminId: number,
     jobId: number,
-    query?: { take?: number; page?: number; status?: ApplicationStatus | string }
+    query?: {
+      take?: number;
+      page?: number;
+      status?: ApplicationStatus | string;
+    },
   ) {
     const company = await prisma.company.findUnique({
       where: { adminId },
@@ -179,7 +189,9 @@ export class ApplicationService {
     }
 
     const { take, page, skip } = this.normalizePagination(query);
-    const status = query?.status ? this.normalizeStatus(query.status) : undefined;
+    const status = query?.status
+      ? this.normalizeStatus(query.status)
+      : undefined;
 
     const where = {
       jobId,
@@ -219,7 +231,7 @@ export class ApplicationService {
   async updateStatus(
     adminId: number,
     applicationId: number,
-    body: { status: ApplicationStatus | string; rejectionReason?: string }
+    body: { status: ApplicationStatus | string; rejectionReason?: string },
   ) {
     const existing = await prisma.application.findUnique({
       where: { id: applicationId },
@@ -251,7 +263,10 @@ export class ApplicationService {
     const status = this.normalizeStatus(body.status);
 
     if (status === ApplicationStatus.REJECTED && !body.rejectionReason) {
-      throw new ApiError("rejectionReason is required when status is REJECTED", 400);
+      throw new ApiError(
+        "rejectionReason is required when status is REJECTED",
+        400,
+      );
     }
 
     const application = await prisma.application.update({
@@ -259,9 +274,7 @@ export class ApplicationService {
       data: {
         status,
         rejectionReason:
-          status === ApplicationStatus.REJECTED
-            ? body.rejectionReason
-            : null,
+          status === ApplicationStatus.REJECTED ? body.rejectionReason : null,
       },
       include: {
         user: { select: { id: true, email: true, fullName: true } },

@@ -33,6 +33,7 @@ model User {
   cvs          CV[]
   applications Application[]
   refreshToken RefreshToken?
+  testResults  TestResult[]
 
   @@map("users")
 }
@@ -73,6 +74,8 @@ model Job {
   company     Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
   title       String    @db.VarChar(255)
   description String    @db.Text
+  category    String    @db.VarChar(100)
+  tags        String[]
   banner      String?   @db.Text
   salary      Decimal?  @db.Decimal(12, 2)
   city        String    @db.VarChar(100)
@@ -152,9 +155,11 @@ model Application {
   createdAt       DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt       DateTime          @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  interview  Interview?
-  testResult TestResult?
+  interview    Interview?
+  testResultId Int?        @unique @map("test_result_id") // unique = one-to-one
+  testResult   TestResult? @relation(fields: [testResultId], references: [id])
 
+  @@unique([userId, jobId]) // cegah apply 2x
   @@map("applications")
 }
 
@@ -174,11 +179,14 @@ model TestResult {
   id                 Int              @id @default(autoincrement())
   preSelectionTestId Int              @map("pre_selection_test_id")
   preSelectionTest   PreSelectionTest @relation(fields: [preSelectionTestId], references: [id], onDelete: Cascade)
-  applicationId      Int              @unique @map("application_id")
-  application        Application      @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  userId             Int              @map("user_id")
+  user               User             @relation(fields: [userId], references: [id], onDelete: Cascade)
   score              Decimal          @db.Decimal(5, 2)
   createdAt          DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
 
+  application Application? // one-to-one 
+
+  @@unique([userId, preSelectionTestId])
   @@map("test_results")
 }
 
