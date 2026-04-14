@@ -28,16 +28,14 @@ export class PreSelectionTestService {
     });
     if (!job)
       throw new ApiError("Job tidak ditemukan atau bukan milik Anda", 404);
-    if (body.questions.length !== 25)
-      throw new ApiError("Wajib memiliki 25 soal", 400);
+
+    const isExist = await this.prisma.preSelectionTest.findUnique({
+      where: { jobId: body.jobId },
+    });
+    if (isExist)
+      throw new ApiError("Job ini sudah memiliki pre selection test", 400);
 
     return await this.prisma.$transaction(async (tx) => {
-      const isExist = await tx.preSelectionTest.findUnique({
-        where: { jobId: body.jobId },
-      });
-      if (isExist)
-        throw new ApiError("Job ini sudah memiliki pre selection test", 400);
-
       const test = await tx.preSelectionTest.create({
         data: {
           jobId: body.jobId,
@@ -73,8 +71,6 @@ export class PreSelectionTestService {
     });
     if (!test)
       throw new ApiError("Test tidak ditemukan atau bukan milik Anda", 404);
-    if (body.questions && body.questions.length !== 25)
-      throw new ApiError("Soal harus berjumlah tepat 25", 400);
 
     return await this.prisma.$transaction(async (tx) => {
       if (body.questions) {
@@ -115,19 +111,13 @@ export class PreSelectionTestService {
   // Ambil soal untuk dikerjakan user (tanpa correctAnswer)
   takeTest = async (jobId: number, userId: number) => {
     const test = await this.prisma.preSelectionTest.findFirst({
-      where: { jobId, job: { preTest: true } },
+      where: { jobId, job: { preTest: true, status: "PUBLISHED" } },
       include: {
         questions: {
-          select: {
-            id: true,
-            questionText: true,
-            // correctAnswer sengaja tidak di-select
+          omit: { correctAnswer: true },
+          include: {
             options: {
-              select: {
-                id: true,
-                optionText: true,
-                // isCorrect sengaja tidak di-select
-              },
+              omit: { isCorrect: true },
             },
           },
         },
@@ -135,11 +125,13 @@ export class PreSelectionTestService {
     });
     if (!test) throw new ApiError("Pre selection test tidak ditemukan", 404);
 
-    // Cek apakah user sudah pernah melamar dan punya hasil tes untuk job ini
-    const existingResult = await this.prisma.testResult.findFirst({
+    const existingResult = await this.prisma.testResult.findUnique({
       where: {
-        preSelectionTestId: test.id,
-        application: { userId: userId },
+        userId_preSelectionTestId: {
+          // Memanfaatkan @@unique constraint
+          userId: userId,
+          preSelectionTestId: test.id,
+        },
       },
     });
 
@@ -149,66 +141,22 @@ export class PreSelectionTestService {
     return test;
   };
 
-  // Pastikan SubmitTestDTO di file .dto.ts sudah menyertakan jobId dan cvId
-  submitTest = async (body: any, userId: number) => {
-    const { jobId, cvId, answers, expectedSalary } = body;
-
-    // 1. Ambil data tes berdasarkan JobId
+  submitTest = async (body: SubmitTestDTO, userId: number) => {
+    const { jobId, answers } = body;
     const test = await this.prisma.preSelectionTest.findFirst({
       where: { jobId },
       include: { questions: true },
     });
-
-    if (!test) throw new ApiError("Pre selection test tidak ditemukan", 404);
-
-    // 2. Cek apakah user sudah pernah punya TestResult untuk job ini
-    const existingResult = await this.prisma.testResult.findFirst({
-      where: {
-        preSelectionTestId: test.id,
-        application: { userId },
-      },
-    });
-
-    if (existingResult)
-      throw new ApiError("Anda sudah mengerjakan tes ini", 400);
-
-    // 3. Hitung skor
-    let correctCount = 0;
-    for (const answer of answers) {
-      const question = test.questions.find((q) => q.id === answer.questionId);
-      if (question && question.correctAnswer === answer.selectedAnswer) {
-        correctCount++;
-      }
-    }
-
-    // Gunakan total soal yang ada di DB, jangan hardcode 25 agar lebih fleksibel
-    const totalQuestions = test.questions.length;
-    const score = (correctCount / totalQuestions) * 100;
-
-    // 4. TRANSACTION: Buat Application dan TestResult sekaligus
-    return await this.prisma.$transaction(async (tx) => {
-      // Buat data lamaran (Application)
-      const newApplication = await tx.application.create({
-        data: {
-          userId,
-          jobId,
-          cvId,
-          expectedSalary,
-          status: "PENDING", // Lamaran masuk dengan status pending
-        },
-      });
-
-      // Buat data hasil tes (TestResult) yang terhubung ke application tadi
-      return await tx.testResult.create({
-        data: {
-          preSelectionTestId: test.id,
-          applicationId: newApplication.id,
-          score,
-        },
-        include: {
-          application: true, // Sertakan data lamaran di return value
-        },
-      });
+    if (!test || test.questions.length === 0)
+      throw new ApiError("Data tes tidak valid", 404);
+    // Gunakan reduce agar kode lebih ringkas (clean code)
+    const correctCount = answers.reduce((count: number, ans: any) => {
+      const q = test.questions.find((q) => q.id === ans.questionId);
+      return q?.correctAnswer === ans.selectedAnswer ? count + 1 : count;
+    }, 0);
+    const score = (correctCount / test.questions.length) * 100;
+    return await this.prisma.testResult.create({
+      data: { userId, preSelectionTestId: test.id, score },
     });
   };
 

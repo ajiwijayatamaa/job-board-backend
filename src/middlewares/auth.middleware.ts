@@ -2,6 +2,7 @@ import { NextFunction, Request, Response } from "express";
 import jwt from "jsonwebtoken";
 import { Role } from "../generated/prisma/enums.js";
 import { ApiError } from "../utils/api-error.js";
+import { prisma } from "../lib/prisma.js";
 
 export class AuthMiddleware {
   //Digunakan untuk mengecek token yang dikirim dari user valid atau tidak
@@ -53,6 +54,17 @@ export class AuthMiddleware {
       } catch (err) {
         next(err);
       }
+    };
+  };
+
+  verifyVerified = () => {
+    return async (req: Request, res: Response, next: NextFunction) => {
+      const userId = res.locals.existingUser?.id;
+      const user = await prisma.user.findUnique({ where: { id: userId } });
+      if (!user?.isVerified) {
+        return next(new ApiError("Akun belum terverifikasi", 403));
+      }
+      next();
     };
   };
 }
