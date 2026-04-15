@@ -2,25 +2,28 @@ import cookieParser from "cookie-parser";
 import cors from "cors";
 import express from "express";
 import { corsOptions } from "./config/cors.js";
+import { loggerHttp } from "./lib/logger-http.js";
 import {
   errorMiddleware,
   notFoundMiddleware,
 } from "./middlewares/error.middleware.js";
-import { loggerHttp } from "./lib/logger-http.js";
 
-import { PreSelectionTestService } from "./modules/pre-selection-test/pre-selection-test.service.js";
-import { PreSelectionTestController } from "./modules/pre-selection-test/pre-selection-test.controller.js";
-import { PreSelectionTestRouter } from "./modules/pre-selection-test/pre-selection-test.router.js";
+import { prisma } from "./lib/prisma.js";
+import { AuthMiddleware } from "./middlewares/auth.middleware.js";
+import { UploadMiddleware } from "./middlewares/upload.middleware.js";
+import { ValidationMiddleware } from "./middlewares/validation.middleware.js";
+import { CloudinaryService } from "./modules/cloudinary/cloudinary.service.js";
+import { JobService } from "./modules/job/job.service.js";
+import { JobController } from "./modules/job/job.controller.js";
+import { JobRouter } from "./modules/job/job.router.js";
+import { ApplicationRouter } from "./modules/application/application.router.js";
 import { AuthRouter } from "./modules/auth/auth.routes.js";
 import { CompanyRouter } from "./modules/company/company.routes.js";
-import { JobRouter } from "./modules/job/job.routes.js";
-import { UserRouter } from "./modules/user/user.routes.js";
-import { ValidationMiddleware } from "./middlewares/validation.middleware.js";
-import { AuthMiddleware } from "./middlewares/auth.middleware.js";
-import { prisma } from "./lib/prisma.js";
-import { UploadMiddleware } from "./middlewares/upload.middleware.js";
-import { ApplicationRouter } from "./modules/application/application.router.js";
 import { CVRouter } from "./modules/cv/cv.router.js";
+import { PreSelectionTestController } from "./modules/pre-selection-test/pre-selection-test.controller.js";
+import { PreSelectionTestRouter } from "./modules/pre-selection-test/pre-selection-test.router.js";
+import { PreSelectionTestService } from "./modules/pre-selection-test/pre-selection-test.service.js";
+import { UserRouter } from "./modules/user/user.routes.js";
 
 const PORT = 8000;
 
@@ -47,11 +50,14 @@ export class App {
 
     // services
     const preSelectionTestService = new PreSelectionTestService(prismaClient);
+    const cloudinaryService = new CloudinaryService();
+    const jobService = new JobService(prismaClient, cloudinaryService);
 
     // controllers
     const preSelectionTestController = new PreSelectionTestController(
       preSelectionTestService,
     );
+    const jobController = new JobController(jobService);
 
     //middlewares
     const authMiddleware = new AuthMiddleware();
@@ -64,23 +70,35 @@ export class App {
       authMiddleware,
       validationMiddleware,
     );
+    const jobRouter = new JobRouter(
+      jobController,
+      authMiddleware,
+      uploadMiddleware,
+      validationMiddleware,
+    );
 
     const authRouter = new AuthRouter();
     const userRouter = new UserRouter();
     const companyRouter = new CompanyRouter();
-    const jobRouter = new JobRouter();
+
     const cvRouter = new CVRouter();
     const applicationsRouter = new ApplicationRouter();
 
-    // entry point
+    // entry point — USER (Feature 1)
     this.app.use("/auth", authRouter.getRouter());
     this.app.use("/users", userRouter.getRouter());
     this.app.use("/companies", companyRouter.getRouter());
-    this.app.use("/jobs", jobRouter.getRouter());
     this.app.use("/cvs", cvRouter.getRouter());
+
+    // entry point — SHARED (berdua)
     this.app.use("/applications", applicationsRouter.getRouter());
-    // entry point preselestion test
-    this.app.use("/pre-selection-tests", preSelectionTestRouter.getRouter());
+
+    // entry point — ADMIN (Feature 2)
+    this.app.use(
+      "/admin/pre-selection-tests",
+      preSelectionTestRouter.getRouter(),
+    );
+    this.app.use("/admin/jobs", jobRouter.getRouter());
   };
 
   private handleError = () => {

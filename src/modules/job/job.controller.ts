@@ -1,173 +1,56 @@
-import { NextFunction, Request, Response } from "express";
+import { plainToInstance } from "class-transformer";
+import { Request, Response } from "express";
 import { JobService } from "./job.service.js";
-import { ApiError } from "../../utils/api-error.js";
+import { GetJobsDTO, UpdateJobDTO, UpdateJobStatusDTO } from "./dto/job.dto.js";
 
 export class JobController {
-  private service: JobService;
+  constructor(private jobService: JobService) {}
 
-  constructor() {
-    this.service = new JobService();
-  }
-
-  create = async (req: Request, res: Response, next: NextFunction) => {
-    try {
-      const adminId = res.locals.existingUser?.id;
-      if (!adminId) return next(new ApiError("Unauthorized", 401));
-
-      const {
-        title,
-        description,
-        banner,
-        salary,
-        city,
-        deadline,
-        status,
-        preTest,
-      } = req.body;
-
-      if (!title || !description || !city || !deadline) {
-        return next(
-          new ApiError("title, description, city and deadline are required", 400)
-        );
-      }
-
-      const result = await this.service.create(adminId, {
-        title,
-        description,
-        banner,
-        salary,
-        city,
-        deadline,
-        status,
-        preTest,
-      });
-
-      res.status(201).json(result);
-    } catch (error) {
-      next(error);
-    }
+  getJobs = async (req: Request, res: Response) => {
+    const query = plainToInstance(GetJobsDTO, req.query);
+    const adminId = res.locals.existingUser.id;
+    const result = await this.jobService.getJobs({ ...query, adminId });
+    res.status(200).send(result);
   };
 
-  getById = async (req: Request, res: Response, next: NextFunction) => {
-    try {
-      const rawId = Array.isArray(req.params.id)
-        ? req.params.id[0]
-        : req.params.id;
-      const jobId = parseInt(rawId);
-
-      if (Number.isNaN(jobId)) {
-        return next(new ApiError("Invalid job id", 400));
-      }
-
-      const result = await this.service.getById(jobId);
-      res.status(200).json(result);
-    } catch (error) {
-      next(error);
-    }
+  getJobById = async (req: Request, res: Response) => {
+    const id = Number(req.params.id);
+    const adminId = res.locals.existingUser.id;
+    const result = await this.jobService.getJobById(id, adminId);
+    res.status(200).send(result);
   };
 
-  update = async (req: Request, res: Response, next: NextFunction) => {
-    try {
-      const adminId = res.locals.existingUser?.id;
-      if (!adminId) return next(new ApiError("Unauthorized", 401));
-
-      const rawId = Array.isArray(req.params.id)
-        ? req.params.id[0]
-        : req.params.id;
-      const jobId = parseInt(rawId);
-      if (Number.isNaN(jobId)) {
-        return next(new ApiError("Invalid job id", 400));
-      }
-
-      const {
-        title,
-        description,
-        banner,
-        salary,
-        city,
-        deadline,
-        status,
-        preTest,
-      } = req.body;
-
-      const result = await this.service.update(adminId, jobId, {
-        title,
-        description,
-        banner,
-        salary,
-        city,
-        deadline,
-        status,
-        preTest,
-      });
-
-      res.status(200).json(result);
-    } catch (error) {
-      next(error);
-    }
+  createJob = async (req: Request, res: Response) => {
+    const body = req.body;
+    const files = req.files as { [fieldname: string]: Express.Multer.File[] };
+    const banner = files.banner?.[0]; // opsional
+    const adminId = res.locals.existingUser.id;
+    const result = await this.jobService.createJob(body, adminId, banner);
+    res.status(201).send(result);
   };
 
-  remove = async (req: Request, res: Response, next: NextFunction) => {
-    try {
-      const adminId = res.locals.existingUser?.id;
-      if (!adminId) return next(new ApiError("Unauthorized", 401));
-
-      const rawId = Array.isArray(req.params.id)
-        ? req.params.id[0]
-        : req.params.id;
-      const jobId = parseInt(rawId);
-      if (Number.isNaN(jobId)) {
-        return next(new ApiError("Invalid job id", 400));
-      }
-
-      const result = await this.service.remove(adminId, jobId);
-      res.status(200).json(result);
-    } catch (error) {
-      next(error);
-    }
+  updateJob = async (req: Request, res: Response) => {
+    const id = Number(req.params.id);
+    const body = plainToInstance(UpdateJobDTO, req.body);
+    const files = req.files as { [fieldname: string]: Express.Multer.File[] };
+    const banner = files?.banner?.[0]; // opsional
+    const adminId = res.locals.existingUser.id;
+    const result = await this.jobService.updateJob(id, body, adminId, banner);
+    res.status(200).send(result);
   };
 
-  listPublished = async (req: Request, res: Response, next: NextFunction) => {
-    try {
-      const { q, city, take, page, sortBy, sortOrder } = req.query;
-
-      const result = await this.service.listPublished({
-        q: q?.toString(),
-        city: city?.toString(),
-        take: take ? parseInt(take.toString()) : undefined,
-        page: page ? parseInt(page.toString()) : undefined,
-        sortBy: sortBy?.toString(),
-        sortOrder: sortOrder?.toString(),
-      });
-
-      res.status(200).json(result);
-    } catch (error) {
-      next(error);
-    }
+  updateJobStatus = async (req: Request, res: Response) => {
+    const id = Number(req.params.id);
+    const body = plainToInstance(UpdateJobStatusDTO, req.body);
+    const adminId = res.locals.existingUser.id;
+    const result = await this.jobService.updateJobStatus(id, body, adminId);
+    res.status(200).send(result);
   };
 
-  listMyCompanyJobs = async (
-    req: Request,
-    res: Response,
-    next: NextFunction
-  ) => {
-    try {
-      const adminId = res.locals.existingUser?.id;
-      if (!adminId) return next(new ApiError("Unauthorized", 401));
-
-      const { status, take, page, sortBy, sortOrder } = req.query;
-
-      const result = await this.service.listByAdminCompany(adminId, {
-        status: status?.toString(),
-        take: take ? parseInt(take.toString()) : undefined,
-        page: page ? parseInt(page.toString()) : undefined,
-        sortBy: sortBy?.toString(),
-        sortOrder: sortOrder?.toString(),
-      });
-
-      res.status(200).json(result);
-    } catch (error) {
-      next(error);
-    }
+  deleteJob = async (req: Request, res: Response) => {
+    const id = Number(req.params.id);
+    const adminId = res.locals.existingUser.id;
+    const result = await this.jobService.deleteJob(id, adminId);
+    res.status(200).send(result);
   };
 }
