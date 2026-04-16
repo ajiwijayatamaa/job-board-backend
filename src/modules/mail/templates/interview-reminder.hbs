@@ -1,0 +1,166 @@
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <title>Pengingat Interview</title>
+    <style>
+      body {
+        margin: 0;
+        padding: 0;
+        background-color: #f4f6f8;
+        font-family: Arial, Helvetica, sans-serif;
+      }
+
+      .container {
+        width: 100%;
+        padding: 40px 0;
+        background-color: #f4f6f8;
+      }
+
+      .card {
+        max-width: 500px;
+        margin: 0 auto;
+        background: #ffffff;
+        border-radius: 8px;
+        padding: 40px 30px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+        text-align: center;
+      }
+
+      .badge {
+        display: inline-block;
+        background-color: #fef9c3;
+        color: #854d0e;
+        font-size: 12px;
+        font-weight: bold;
+        padding: 4px 12px;
+        border-radius: 20px;
+        margin-bottom: 16px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+      }
+
+      h1 {
+        margin: 0 0 8px;
+        font-size: 22px;
+        color: #333333;
+      }
+
+      p {
+        font-size: 14px;
+        color: #555555;
+        line-height: 1.6;
+        margin-bottom: 20px;
+      }
+
+      .info-box {
+        background-color: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 8px;
+        padding: 20px;
+        text-align: left;
+        margin-bottom: 28px;
+      }
+
+      .info-row {
+        display: flex;
+        margin-bottom: 12px;
+      }
+
+      .info-row:last-child {
+        margin-bottom: 0;
+      }
+
+      .info-label {
+        font-size: 12px;
+        color: #888888;
+        width: 120px;
+        flex-shrink: 0;
+        padding-top: 2px;
+      }
+
+      .info-value {
+        font-size: 14px;
+        color: #333333;
+        font-weight: bold;
+        word-break: break-word;
+      }
+
+      .footer {
+        margin-top: 30px;
+        font-size: 12px;
+        color: #888888;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="card">
+        <div class="badge">⏰ Pengingat H-1</div>
+        <h1>Interview Besok!</h1>
+
+        {{#if isAdmin}}
+          <!-- Versi untuk Admin -->
+          <p>
+            Halo
+            <strong>{{recipientName}}</strong>, ini adalah pengingat bahwa kamu
+            memiliki jadwal interview besok dengan pelamar
+            <strong>{{applicantName}}</strong>
+            untuk posisi
+            <strong>{{jobTitle}}</strong>.
+          </p>
+        {{else}}
+          <!-- Versi untuk Pelamar -->
+          <p>
+            Halo
+            <strong>{{recipientName}}</strong>, ini adalah pengingat bahwa kamu
+            memiliki jadwal interview besok untuk posisi
+            <strong>{{jobTitle}}</strong>
+            di
+            <strong>{{companyName}}</strong>. Pastikan kamu sudah siap!
+          </p>
+        {{/if}}
+
+        <div class="info-box">
+          {{#if isAdmin}}
+            <div class="info-row">
+              <span class="info-label">Pelamar</span>
+              <span class="info-value">{{applicantName}}</span>
+            </div>
+          {{/if}}
+          <div class="info-row">
+            <span class="info-label">Posisi</span>
+            <span class="info-value">{{jobTitle}}</span>
+          </div>
+          <div class="info-row">
+            <span class="info-label">Perusahaan</span>
+            <span class="info-value">{{companyName}}</span>
+          </div>
+          <div class="info-row">
+            <span class="info-label">Tanggal</span>
+            <span class="info-value">{{interviewDate}}</span>
+          </div>
+          <div class="info-row">
+            <span class="info-label">Waktu</span>
+            <span class="info-value">{{interviewTime}} WIB</span>
+          </div>
+          <div class="info-row">
+            <span class="info-label">Lokasi / Link</span>
+            <span class="info-value">{{locationLink}}</span>
+          </div>
+        </div>
+
+        {{#if isAdmin}}
+          <p>Pastikan kamu sudah mempersiapkan pertanyaan dan sesi interview
+            dengan baik.</p>
+        {{else}}
+          <p>Persiapkan dirimu dengan baik dan hadir tepat waktu. Semangat!</p>
+        {{/if}}
+
+        <div class="footer">
+          Email ini dikirim secara otomatis sebagai pengingat H-1 sebelum jadwal
+          interview.
+        </div>
+      </div>
+    </div>
+  </body>
+</html>

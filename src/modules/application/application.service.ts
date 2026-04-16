@@ -103,7 +103,14 @@ export class ApplicantService {
             city: true,
           },
         },
-        cv: true,
+        cv: {
+          select: {
+            id: true,
+            cvName: true,
+            fileUrl: true, // untuk preview
+            isPrimary: true,
+          },
+        },
         testResult: true,
       },
     });

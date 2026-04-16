@@ -182,19 +182,40 @@ export class PreSelectionTestService {
   submitTest = async (body: SubmitTestDTO, userId: number) => {
     const { jobId, answers } = body;
     const test = await this.prisma.preSelectionTest.findFirst({
-      where: { jobId },
+      where: {
+        jobId,
+        job: { preTest: true, status: "PUBLISHED" },
+      },
       include: { questions: true },
     });
 
     if (!test || test.questions.length === 0)
       throw new ApiError("Tes tidak valid", 404);
+
+    const validQuestionIds = new Set(test.questions.map((q) => q.id));
+    const invalidAnswers = answers.filter(
+      (a) => !validQuestionIds.has(a.questionId),
+    );
+    if (invalidAnswers.length > 0)
+      throw new ApiError("Terdapat soal yang tidak valid", 400);
+
     const score = this.calculateScore(test.questions, answers);
 
     return await this.prisma.$transaction(async (tx) => {
+      const existingResult = await tx.testResult.findUnique({
+        where: {
+          userId_preSelectionTestId: {
+            userId,
+            preSelectionTestId: test.id,
+          },
+        },
+      });
+      if (existingResult)
+        throw new ApiError("Anda sudah mengerjakan tes ini", 400);
+
       const result = await tx.testResult.create({
         data: { userId, preSelectionTestId: test.id, score },
       });
-      // Menghubungkan ke lamaran jika data lamaran sudah dibuat oleh (Fitur 1)
       await tx.application.updateMany({
         where: { userId, jobId },
         data: { testResultId: result.id },
