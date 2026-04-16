@@ -13,6 +13,7 @@ import { AuthMiddleware } from "./middlewares/auth.middleware.js";
 import { UploadMiddleware } from "./middlewares/upload.middleware.js";
 import { ValidationMiddleware } from "./middlewares/validation.middleware.js";
 import { CloudinaryService } from "./modules/cloudinary/cloudinary.service.js";
+import { MailService } from "./modules/mail/mail.service.js";
 import { JobService } from "./modules/job/job.service.js";
 import { JobController } from "./modules/job/job.controller.js";
 import { JobRouter } from "./modules/job/job.router.js";
@@ -26,6 +27,10 @@ import { PreSelectionTestController } from "./modules/pre-selection-test/pre-sel
 import { PreSelectionTestRouter } from "./modules/pre-selection-test/pre-selection-test.router.js";
 import { PreSelectionTestService } from "./modules/pre-selection-test/pre-selection-test.service.js";
 import { UserRouter } from "./modules/user/user.routes.js";
+import { InterviewService } from "./modules/interview/interview.service.js";
+import { InterviewController } from "./modules/interview/interview.controller.js";
+import { InterviewRouter } from "./modules/interview/interview.router.js";
+import { initScheduler } from "./scripts/index.js";
 
 const PORT = 8000;
 
@@ -37,6 +42,7 @@ export class App {
     this.configure();
     this.registerModules();
     this.handleError();
+    initScheduler(); // jalankan semua cron job saat server start
   }
 
   private configure = () => {
@@ -51,10 +57,12 @@ export class App {
     const prismaClient = prisma;
 
     // services
+    const mailService = new MailService();
     const preSelectionTestService = new PreSelectionTestService(prismaClient);
     const cloudinaryService = new CloudinaryService();
     const jobService = new JobService(prismaClient, cloudinaryService);
     const applicantService = new ApplicantService(prismaClient);
+    const interviewService = new InterviewService(prismaClient, mailService);
 
     // controllers
     const preSelectionTestController = new PreSelectionTestController(
@@ -62,6 +70,7 @@ export class App {
     );
     const jobController = new JobController(jobService);
     const applicantController = new ApplicantController(applicantService);
+    const interviewController = new InterviewController(interviewService);
 
     //middlewares
     const authMiddleware = new AuthMiddleware();
@@ -82,6 +91,11 @@ export class App {
     );
     const applicationsRouter = new ApplicantRouter(
       applicantController,
+      authMiddleware,
+      validationMiddleware,
+    );
+    const interviewRouter = new InterviewRouter(
+      interviewController,
       authMiddleware,
       validationMiddleware,
     );
@@ -108,6 +122,7 @@ export class App {
       preSelectionTestRouter.getRouter(),
     );
     this.app.use("/admin/jobs", jobRouter.getRouter());
+    this.app.use("/admin/interviews", interviewRouter.getRouter());
   };
 
   private handleError = () => {
