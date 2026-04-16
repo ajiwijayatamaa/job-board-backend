@@ -13,7 +13,7 @@ export class JobService {
     private prisma: PrismaClient,
     private cloudinaryService: CloudinaryService,
   ) {}
-
+  // ========================= ADMIN - FEATUR 2 (START) =========================
   getJobs = async (query: GetJobsDTO & { adminId: number }) => {
     const { page, take, sortBy, sortOrder, search, category, city, adminId } =
       query;
@@ -186,4 +186,9 @@ export class JobService {
 
     return { message: "Lowongan berhasil dihapus" };
   };
+  // ========================= ADMIN - FEATUR 2 (END) =========================
+
+  // ========================= USER - FEATUR 1 (START) =========================
+
+  // ========================= USER - FEATUR 1 (END) =========================
 }

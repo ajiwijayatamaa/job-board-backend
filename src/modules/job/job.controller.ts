@@ -23,7 +23,7 @@ export class JobController {
   createJob = async (req: Request, res: Response) => {
     const body = req.body;
     const files = req.files as { [fieldname: string]: Express.Multer.File[] };
-    const banner = files.banner?.[0]; // opsional
+    const banner = files?.banner?.[0]; // opsional
     const adminId = res.locals.existingUser.id;
     const result = await this.jobService.createJob(body, adminId, banner);
     res.status(201).send(result);

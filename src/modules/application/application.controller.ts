@@ -1,132 +1,50 @@
-import { NextFunction, Request, Response } from "express";
-import { ApiError } from "../../utils/api-error.js";
-import { ApplicationService } from "./application.service.js";
+import { plainToInstance } from "class-transformer";
+import { Request, Response } from "express";
+import { ApplicantService } from "./application.service.js";
+import {
+  GetApplicantsDTO,
+  UpdateApplicantStatusDTO,
+} from "./dto/applicant.dto.js";
 
-export class ApplicationController {
-  private service: ApplicationService;
+export class ApplicantController {
+  constructor(private applicantService: ApplicantService) {}
+  // ========================= ADMIN - FEATUR 2 (START) =========================
+  getApplicants = async (req: Request, res: Response) => {
+    const jobId = Number(req.params.jobId);
+    const query = plainToInstance(GetApplicantsDTO, req.query);
+    const adminId = res.locals.existingUser.id;
 
-  constructor() {
-    this.service = new ApplicationService();
-  }
-
-  apply = async (req: Request, res: Response, next: NextFunction) => {
-    try {
-      const userId = res.locals.existingUser?.id;
-      if (!userId) return next(new ApiError("Unauthorized", 401));
-
-      const { jobId, cvId, expectedSalary } = req.body;
-
-      if (jobId === undefined || cvId === undefined) {
-        return next(new ApiError("jobId and cvId are required", 400));
-      }
-
-      const parsedJobId = typeof jobId === "string" ? parseInt(jobId) : jobId;
-      const parsedCvId = typeof cvId === "string" ? parseInt(cvId) : cvId;
-
-      if (Number.isNaN(parsedJobId) || Number.isNaN(parsedCvId)) {
-        return next(new ApiError("jobId and cvId must be a number", 400));
-      }
-
-      const result = await this.service.apply(userId, {
-        jobId: parsedJobId,
-        cvId: parsedCvId,
-        expectedSalary,
-      });
-
-      res.status(201).json(result);
-    } catch (error) {
-      next(error);
-    }
+    const result = await this.applicantService.getApplicants(
+      jobId,
+      query,
+      adminId,
+    );
+    res.status(200).send(result);
   };
 
-  getMyApplications = async (req: Request, res: Response, next: NextFunction) => {
-    try {
-      const userId = res.locals.existingUser?.id;
-      if (!userId) return next(new ApiError("Unauthorized", 401));
+  getApplicantById = async (req: Request, res: Response) => {
+    const id = Number(req.params.id);
+    const adminId = res.locals.existingUser.id;
 
-      const { take, page, status } = req.query;
-
-      const result = await this.service.getMyApplications(userId, {
-        take: take ? parseInt(take.toString()) : undefined,
-        page: page ? parseInt(page.toString()) : undefined,
-        status: status?.toString(),
-      });
-
-      res.status(200).json(result);
-    } catch (error) {
-      next(error);
-    }
+    const result = await this.applicantService.getApplicantById(id, adminId);
+    res.status(200).send(result);
   };
 
-  getById = async (req: Request, res: Response, next: NextFunction) => {
-    try {
-      const rawId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
-      const applicationId = parseInt(rawId);
+  updateApplicantStatus = async (req: Request, res: Response) => {
+    const id = Number(req.params.id);
+    const body = plainToInstance(UpdateApplicantStatusDTO, req.body);
+    const adminId = res.locals.existingUser.id;
 
-      if (Number.isNaN(applicationId)) {
-        return next(new ApiError("Invalid application id", 400));
-      }
-
-      const result = await this.service.getById(applicationId);
-      res.status(200).json(result);
-    } catch (error) {
-      next(error);
-    }
+    const result = await this.applicantService.updateApplicantStatus(
+      id,
+      body,
+      adminId,
+    );
+    res.status(200).send(result);
   };
+  // ========================= ADMIN - FEATUR 2 (END) =========================
 
-  getApplicantsByJob = async (req: Request, res: Response, next: NextFunction) => {
-    try {
-      const adminId = res.locals.existingUser?.id;
-      if (!adminId) return next(new ApiError("Unauthorized", 401));
+  // ========================= USER - FEATUR 1 (START) =========================
 
-      const rawJobId = Array.isArray(req.params.jobId)
-        ? req.params.jobId[0]
-        : (req.params.jobId ?? req.params.id);
-      const jobId = parseInt(rawJobId);
-
-      if (Number.isNaN(jobId)) {
-        return next(new ApiError("Invalid job id", 400));
-      }
-
-      const { take, page, status } = req.query;
-
-      const result = await this.service.getApplicantsByJob(adminId, jobId, {
-        take: take ? parseInt(take.toString()) : undefined,
-        page: page ? parseInt(page.toString()) : undefined,
-        status: status?.toString(),
-      });
-
-      res.status(200).json(result);
-    } catch (error) {
-      next(error);
-    }
-  };
-
-  updateStatus = async (req: Request, res: Response, next: NextFunction) => {
-    try {
-      const adminId = res.locals.existingUser?.id;
-      if (!adminId) return next(new ApiError("Unauthorized", 401));
-
-      const rawId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
-      const applicationId = parseInt(rawId);
-
-      if (Number.isNaN(applicationId)) {
-        return next(new ApiError("Invalid application id", 400));
-      }
-
-      const { status, rejectionReason } = req.body;
-      if (!status) {
-        return next(new ApiError("status is required", 400));
-      }
-
-      const result = await this.service.updateStatus(adminId, applicationId, {
-        status,
-        rejectionReason,
-      });
-
-      res.status(200).json(result);
-    } catch (error) {
-      next(error);
-    }
-  };
+  // ========================= USER - FEATUR 1 (END) =========================
 }

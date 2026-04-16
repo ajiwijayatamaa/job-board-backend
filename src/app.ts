@@ -16,7 +16,9 @@ import { CloudinaryService } from "./modules/cloudinary/cloudinary.service.js";
 import { JobService } from "./modules/job/job.service.js";
 import { JobController } from "./modules/job/job.controller.js";
 import { JobRouter } from "./modules/job/job.router.js";
-import { ApplicationRouter } from "./modules/application/application.router.js";
+import { ApplicantService } from "./modules/application/application.service.js";
+import { ApplicantController } from "./modules/application/application.controller.js";
+import { ApplicantRouter } from "./modules/application/application.router.js";
 import { AuthRouter } from "./modules/auth/auth.routes.js";
 import { CompanyRouter } from "./modules/company/company.routes.js";
 import { CVRouter } from "./modules/cv/cv.router.js";
@@ -52,12 +54,14 @@ export class App {
     const preSelectionTestService = new PreSelectionTestService(prismaClient);
     const cloudinaryService = new CloudinaryService();
     const jobService = new JobService(prismaClient, cloudinaryService);
+    const applicantService = new ApplicantService(prismaClient);
 
     // controllers
     const preSelectionTestController = new PreSelectionTestController(
       preSelectionTestService,
     );
     const jobController = new JobController(jobService);
+    const applicantController = new ApplicantController(applicantService);
 
     //middlewares
     const authMiddleware = new AuthMiddleware();
@@ -76,13 +80,17 @@ export class App {
       uploadMiddleware,
       validationMiddleware,
     );
+    const applicationsRouter = new ApplicantRouter(
+      applicantController,
+      authMiddleware,
+      validationMiddleware,
+    );
 
     const authRouter = new AuthRouter();
     const userRouter = new UserRouter();
     const companyRouter = new CompanyRouter();
 
     const cvRouter = new CVRouter();
-    const applicationsRouter = new ApplicationRouter();
 
     // entry point — USER (Feature 1)
     this.app.use("/auth", authRouter.getRouter());
@@ -91,9 +99,10 @@ export class App {
     this.app.use("/cvs", cvRouter.getRouter());
 
     // entry point — SHARED (berdua)
-    this.app.use("/applications", applicationsRouter.getRouter());
+    this.app.use("/pre-selection-tests", preSelectionTestRouter.getRouter());
 
     // entry point — ADMIN (Feature 2)
+    this.app.use("/admin/applicants", applicationsRouter.getRouter());
     this.app.use(
       "/admin/pre-selection-tests",
       preSelectionTestRouter.getRouter(),
