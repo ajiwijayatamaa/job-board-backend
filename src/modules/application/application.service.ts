@@ -1,291 +1,223 @@
-import { ApplicationStatus, JobStatus } from "../../generated/prisma/enums.js";
-import { prisma } from "../../lib/prisma.js";
+import { Prisma, PrismaClient } from "../../generated/prisma/client.js";
 import { ApiError } from "../../utils/api-error.js";
+import {
+  GetApplicantsDTO,
+  UpdateApplicantStatusDTO,
+} from "./dto/applicant.dto.js";
 
-export class ApplicationService {
-  private normalizeStatus(status: ApplicationStatus | string) {
-    if (typeof status !== "string") return status;
+export class ApplicantService {
+  constructor(private prisma: PrismaClient) {}
+  // ========================= ADMIN - FEATUR 2 (START) =========================
+  getApplicants = async (
+    jobId: number,
+    query: GetApplicantsDTO,
+    adminId: number,
+  ) => {
+    const {
+      page,
+      take,
+      sortBy,
+      sortOrder,
+      search,
+      minAge,
+      maxAge,
+      minExpectedSalary,
+      maxExpectedSalary,
+      education,
+    } = query;
 
-    const normalized = status.toUpperCase();
-    if (
-      normalized === ApplicationStatus.PENDING ||
-      normalized === ApplicationStatus.PROCESSED ||
-      normalized === ApplicationStatus.INTERVIEW ||
-      normalized === ApplicationStatus.ACCEPTED ||
-      normalized === ApplicationStatus.REJECTED
-    ) {
-      return normalized as ApplicationStatus;
-    }
-
-    throw new ApiError(
-      "Invalid status. Use PENDING, PROCESSED, INTERVIEW, ACCEPTED, or REJECTED",
-      400,
-    );
-  }
-
-  private normalizePagination(query?: { take?: number; page?: number }) {
-    const take = Math.max(1, Math.min(100, query?.take ?? 10));
-    const page = Math.max(1, query?.page ?? 1);
-    const skip = (page - 1) * take;
-    return { take, page, skip };
-  }
-
-  async apply(
-    userId: number,
-    body: { jobId: number; cvId: number; expectedSalary?: number | string },
-  ) {
-    const job = await prisma.job.findUnique({
-      where: { id: body.jobId },
-      select: {
-        id: true,
-        status: true,
-        deadline: true,
-      },
+    // pastikan job milik admin yang sedang login
+    const job = await this.prisma.job.findFirst({
+      where: { id: jobId, company: { adminId } },
     });
 
-    if (!job) {
-      throw new ApiError("Job not found", 404);
+    if (!job) throw new ApiError("Lowongan tidak ditemukan", 404);
+
+    // bangun filter user secara dinamis
+    const userFilter: Prisma.UserWhereInput = {};
+
+    if (search) {
+      userFilter.fullName = { contains: search, mode: "insensitive" };
     }
 
-    if (job.status !== JobStatus.PUBLISHED) {
-      throw new ApiError("Job is not published", 400);
+    if (education) {
+      userFilter.education = { contains: education, mode: "insensitive" };
     }
 
-    if (new Date(job.deadline).getTime() < Date.now()) {
-      throw new ApiError("Job application deadline has passed", 400);
+    // konversi filter usia ke rentang tanggal lahir
+    if (minAge !== undefined || maxAge !== undefined) {
+      const now = new Date();
+      const dateOfBirthFilter: Prisma.DateTimeNullableFilter = {};
+
+      if (maxAge !== undefined) {
+        // lahir setelah (sekarang - maxAge tahun) → usia <= maxAge
+        dateOfBirthFilter.gte = new Date(
+          now.getFullYear() - maxAge,
+          now.getMonth(),
+          now.getDate(),
+        );
+      }
+
+      if (minAge !== undefined) {
+        // lahir sebelum (sekarang - minAge tahun) → usia >= minAge
+        dateOfBirthFilter.lte = new Date(
+          now.getFullYear() - minAge,
+          now.getMonth(),
+          now.getDate(),
+        );
+      }
+
+      userFilter.dateOfBirth = dateOfBirthFilter;
     }
 
-    const cv = await prisma.cV.findFirst({
-      where: { id: body.cvId, userId },
-      select: { id: true },
-    });
+    const whereClause: Prisma.ApplicationWhereInput = { jobId };
 
-    if (!cv) {
-      throw new ApiError("CV not found", 404);
+    if (Object.keys(userFilter).length > 0) {
+      whereClause.user = userFilter;
     }
 
-    const existing = await prisma.application.findFirst({
-      where: { userId, jobId: body.jobId },
-      select: { id: true },
-    });
-
-    if (existing) {
-      throw new ApiError("You have already applied to this job", 400);
+    // filter ekspektasi gaji
+    if (minExpectedSalary !== undefined || maxExpectedSalary !== undefined) {
+      const salaryFilter: Prisma.DecimalNullableFilter = {};
+      if (minExpectedSalary !== undefined) salaryFilter.gte = minExpectedSalary;
+      if (maxExpectedSalary !== undefined) salaryFilter.lte = maxExpectedSalary;
+      whereClause.expectedSalary = salaryFilter;
     }
 
-    const application = await prisma.application.create({
-      data: {
-        userId,
-        jobId: body.jobId,
-        cvId: body.cvId,
-        expectedSalary: body.expectedSalary as any,
-        status: ApplicationStatus.PENDING,
-      },
+    const applications = await this.prisma.application.findMany({
+      where: whereClause,
+      take,
+      skip: (page - 1) * take,
+      // default: paling awal apply tampil duluan sesuai requirement
+      orderBy: sortBy ? { [sortBy]: sortOrder } : { appliedAt: "asc" },
       include: {
-        job: { include: { company: true } },
-        cv: true,
-      },
-    });
-
-    return {
-      message: "Apply job success",
-      data: application,
-    };
-  }
-
-  async getMyApplications(
-    userId: number,
-    query?: {
-      take?: number;
-      page?: number;
-      status?: ApplicationStatus | string;
-    },
-  ) {
-    const { take, page, skip } = this.normalizePagination(query);
-    const status = query?.status
-      ? this.normalizeStatus(query.status)
-      : undefined;
-
-    const where = {
-      userId,
-      ...(status ? { status } : {}),
-    };
-
-    const [items, total] = await Promise.all([
-      prisma.application.findMany({
-        where,
-        include: {
-          job: { include: { company: true } },
-          cv: true,
+        user: {
+          select: {
+            id: true,
+            fullName: true,
+            email: true,
+            profilePhoto: true, // thumbnail foto
+            dateOfBirth: true,
+            gender: true,
+            education: true,
+            city: true,
+          },
         },
-        orderBy: { appliedAt: "desc" },
-        take,
-        skip,
-      }),
-      prisma.application.count({ where }),
-    ]);
-
-    return {
-      message: "Get applications success",
-      data: {
-        items,
-        meta: {
-          total,
-          page,
-          take,
-          pageCount: Math.ceil(total / take),
-        },
-      },
-    };
-  }
-
-  async getById(applicationId: number) {
-    const application = await prisma.application.findUnique({
-      where: { id: applicationId },
-      include: {
-        user: { select: { id: true, email: true, fullName: true } },
-        job: { include: { company: true } },
         cv: true,
-        interview: true,
         testResult: true,
       },
     });
 
-    if (!application) {
-      throw new ApiError("Application not found", 404);
-    }
+    const total = await this.prisma.application.count({ where: whereClause });
 
     return {
-      message: "Get application success",
-      data: application,
+      data: applications,
+      meta: { page, take, total },
     };
-  }
+  };
 
-  async getApplicantsByJob(
-    adminId: number,
-    jobId: number,
-    query?: {
-      take?: number;
-      page?: number;
-      status?: ApplicationStatus | string;
-    },
-  ) {
-    const company = await prisma.company.findUnique({
-      where: { adminId },
-      select: { id: true },
-    });
-
-    if (!company) {
-      throw new ApiError("Company not found for this admin", 404);
-    }
-
-    const job = await prisma.job.findFirst({
-      where: { id: jobId, companyId: company.id },
-      select: { id: true },
-    });
-
-    if (!job) {
-      throw new ApiError("Job not found", 404);
-    }
-
-    const { take, page, skip } = this.normalizePagination(query);
-    const status = query?.status
-      ? this.normalizeStatus(query.status)
-      : undefined;
-
-    const where = {
-      jobId,
-      ...(status ? { status } : {}),
-    };
-
-    const [items, total] = await Promise.all([
-      prisma.application.findMany({
-        where,
-        include: {
-          user: { select: { id: true, email: true, fullName: true } },
-          cv: true,
-          interview: true,
-          testResult: true,
-        },
-        orderBy: { appliedAt: "desc" },
-        take,
-        skip,
-      }),
-      prisma.application.count({ where }),
-    ]);
-
-    return {
-      message: "Get applications success",
-      data: {
-        items,
-        meta: {
-          total,
-          page,
-          take,
-          pageCount: Math.ceil(total / take),
-        },
+  getApplicantById = async (applicationId: number, adminId: number) => {
+    const application = await this.prisma.application.findFirst({
+      where: {
+        id: applicationId,
+        job: { company: { adminId } },
       },
-    };
-  }
+      include: {
+        user: {
+          select: {
+            id: true,
+            fullName: true,
+            email: true,
+            profilePhoto: true,
+            dateOfBirth: true,
+            gender: true,
+            education: true,
+            address: true,
+            city: true,
+          },
+        },
+        cv: true,
+        job: {
+          select: {
+            id: true,
+            title: true,
+            category: true,
+            city: true,
+          },
+        },
+        testResult: true,
+        interview: true,
+      },
+    });
 
-  async updateStatus(
-    adminId: number,
+    if (!application) throw new ApiError("Data pelamar tidak ditemukan", 404);
+
+    return application;
+  };
+
+  updateApplicantStatus = async (
     applicationId: number,
-    body: { status: ApplicationStatus | string; rejectionReason?: string },
-  ) {
-    const existing = await prisma.application.findUnique({
-      where: { id: applicationId },
-      select: {
-        id: true,
-        jobId: true,
-        status: true,
-        job: { select: { companyId: true } },
+    body: UpdateApplicantStatusDTO,
+    adminId: number,
+  ) => {
+    const application = await this.prisma.application.findFirst({
+      where: {
+        id: applicationId,
+        job: { company: { adminId } },
       },
     });
 
-    if (!existing) {
-      throw new ApiError("Application not found", 404);
-    }
+    if (!application) throw new ApiError("Data pelamar tidak ditemukan", 404);
 
-    const company = await prisma.company.findUnique({
-      where: { adminId },
-      select: { id: true },
-    });
+    // validasi urutan transisi status
+    const allowedTransitions: Record<string, string[]> = {
+      PENDING: ["PROCESSED"],
+      PROCESSED: ["INTERVIEW", "REJECTED"],
+      INTERVIEW: ["ACCEPTED", "REJECTED"],
+      ACCEPTED: [],
+      REJECTED: [],
+    };
 
-    if (!company) {
-      throw new ApiError("Company not found for this admin", 404);
-    }
+    const currentStatus = application.status;
+    const allowed = allowedTransitions[currentStatus] ?? [];
 
-    if (existing.job.companyId !== company.id) {
-      throw new ApiError("You don't have access to this resource", 403);
-    }
-
-    const status = this.normalizeStatus(body.status);
-
-    if (status === ApplicationStatus.REJECTED && !body.rejectionReason) {
+    if (!allowed.includes(body.status)) {
       throw new ApiError(
-        "rejectionReason is required when status is REJECTED",
+        `Tidak dapat mengubah status dari ${currentStatus} ke ${body.status}`,
         400,
       );
     }
 
-    const application = await prisma.application.update({
+    // rejection reason wajib diisi jika status REJECTED
+    if (body.status === "REJECTED" && !body.rejectionReason) {
+      throw new ApiError("Alasan penolakan wajib diisi", 400);
+    }
+
+    const updatedApplication = await this.prisma.application.update({
       where: { id: applicationId },
       data: {
-        status,
+        status: body.status,
+        // bersihkan rejection reason jika status bukan REJECTED
         rejectionReason:
-          status === ApplicationStatus.REJECTED ? body.rejectionReason : null,
-      },
-      include: {
-        user: { select: { id: true, email: true, fullName: true } },
-        job: { include: { company: true } },
-        cv: true,
+          body.status === "REJECTED" ? body.rejectionReason : null,
       },
     });
 
-    return {
-      message: "Update application status success",
-      data: application,
+    const statusMessage: Record<string, string> = {
+      PROCESSED: "diproses",
+      INTERVIEW: "dijadwalkan untuk interview",
+      ACCEPTED: "diterima",
+      REJECTED: "ditolak",
     };
-  }
+
+    return {
+      message: `Pelamar berhasil ${statusMessage[body.status]}`,
+      data: updatedApplication,
+    };
+  };
+  // ========================= ADMIN - FEATUR 2 (END) =========================
+
+  // ========================= USER - FEATUR 1 (START) =========================
+
+  // ========================= USER - FEATUR 2 (END) =========================
 }

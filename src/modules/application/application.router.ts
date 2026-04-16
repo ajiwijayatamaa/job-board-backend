@@ -1,74 +1,53 @@
-import { NextFunction, Request, Response, Router } from "express";
-import { Role } from "../../generated/prisma/enums.js";
+import express, { Router } from "express";
 import { AuthMiddleware } from "../../middlewares/auth.middleware.js";
-import { ApplicationController} from "../../modules/application/application.controller.js";
+import { ValidationMiddleware } from "../../middlewares/validation.middleware.js";
+import { ApplicantController } from "./application.controller.js";
+import {
+  GetApplicantsDTO,
+  UpdateApplicantStatusDTO,
+} from "./dto/applicant.dto.js";
 
-export class ApplicationRouter {
+export class ApplicantRouter {
   private router: Router;
-  private controller: ApplicationController;
-  private authMiddleware: AuthMiddleware;
 
-  constructor() {
-    this.router = Router();
-    this.controller = new ApplicationController();
-    this.authMiddleware = new AuthMiddleware();
-    this.initializeRoutes();
+  constructor(
+    private applicantController: ApplicantController,
+    private authMiddleware: AuthMiddleware,
+    private validationMiddleware: ValidationMiddleware,
+  ) {
+    this.router = express.Router();
+    this.initRoutes();
   }
 
-  private initializeRoutes(): void {
-    const verifyToken = this.authMiddleware.verifyToken(
-      process.env.JWT_SECRET as string
-    );
-
-    // user routes
-    this.router.post(
-      "/",
-      verifyToken,
-      this.authMiddleware.verifyRole([Role.USER]),
-      (req: Request, res: Response, next: NextFunction) => {
-        this.controller.apply(req, res, next).catch(next);
-      }
-    );
-
-    this.router.get(
-      "/me",
-      verifyToken,
-      this.authMiddleware.verifyRole([Role.USER]),
-      (req: Request, res: Response, next: NextFunction) => {
-        this.controller.getMyApplications(req, res, next).catch(next);
-      }
-    );
-
-    // shared (authenticated) routes
-    this.router.get(
-      "/:id",
-      verifyToken,
-      (req: Request, res: Response, next: NextFunction) => {
-        this.controller.getById(req, res, next).catch(next);
-      }
-    );
-
-    // admin routes
+  private initRoutes = () => {
+    // GET — list pelamar berdasarkan jobId
     this.router.get(
       "/job/:jobId",
-      verifyToken,
-      this.authMiddleware.verifyRole([Role.ADMIN]),
-      (req: Request, res: Response, next: NextFunction) => {
-        this.controller.getApplicantsByJob(req, res, next).catch(next);
-      }
+      this.authMiddleware.verifyToken(process.env.JWT_SECRET!),
+      this.authMiddleware.verifyRole(["ADMIN"]),
+      this.validationMiddleware.validateQuery(GetApplicantsDTO),
+      this.applicantController.getApplicants,
     );
 
+    // GET — detail pelamar by application id
+    this.router.get(
+      "/:id",
+      this.authMiddleware.verifyToken(process.env.JWT_SECRET!),
+      this.authMiddleware.verifyRole(["ADMIN"]),
+      this.applicantController.getApplicantById,
+    );
+
+    // PATCH — update status pelamar (processed, rejected, etc)
     this.router.patch(
       "/:id/status",
-      verifyToken,
-      this.authMiddleware.verifyRole([Role.ADMIN]),
-      (req: Request, res: Response, next: NextFunction) => {
-        this.controller.updateStatus(req, res, next).catch(next);
-      }
+      this.authMiddleware.verifyToken(process.env.JWT_SECRET!),
+      this.authMiddleware.verifyRole(["ADMIN"]),
+      this.validationMiddleware.validateBody(UpdateApplicantStatusDTO),
+      this.applicantController.updateApplicantStatus,
     );
-  }
+  };
 
-  public getRouter(): Router {
+  getRouter = () => {
     return this.router;
-  }
+  };
 }

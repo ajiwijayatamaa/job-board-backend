@@ -22,6 +22,14 @@ export class PreSelectionTestService {
     }));
   };
 
+  private calculateScore(questions: any[], answers: any[]): number {
+    const correct = answers.reduce((count: number, ans: any) => {
+      const q = questions.find((quest) => quest.id === ans.questionId);
+      return q?.correctAnswer === ans.selectedAnswer ? count + 1 : count;
+    }, 0);
+    return (correct / questions.length) * 100;
+  }
+  // ========================= ADMIN - FEATUR 2 (START) =========================
   createTest = async (body: CreatePreSelectionTestDTO, adminId: number) => {
     const job = await this.prisma.job.findFirst({
       where: { id: body.jobId, company: { adminId } },
@@ -108,7 +116,36 @@ export class PreSelectionTestService {
     });
   };
 
-  // USER
+  // Admin melihat semua hasil tes pelamar
+  getTestResults = async (testId: number, adminId: number) => {
+    const test = await this.prisma.preSelectionTest.findFirst({
+      where: { id: testId, job: { company: { adminId } } },
+    });
+    if (!test)
+      throw new ApiError("Test tidak ditemukan atau bukan milik Anda", 404);
+
+    return await this.prisma.testResult.findMany({
+      where: { preSelectionTestId: testId },
+      include: {
+        application: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                fullName: true,
+                email: true,
+                profilePhoto: true,
+              },
+            },
+          },
+        },
+      },
+      orderBy: { score: "desc" }, // urutkan dari skor tertinggi
+    });
+  };
+  // ========================= ADMIN - FEATUR 2 (END) =========================
+
+  // ========================= USER - FEATUR 1 (START) =========================
   // Ambil soal untuk dikerjakan user (tanpa correctAnswer)
   takeTest = async (jobId: number, userId: number) => {
     const test = await this.prisma.preSelectionTest.findFirst({
@@ -148,44 +185,22 @@ export class PreSelectionTestService {
       where: { jobId },
       include: { questions: true },
     });
+
     if (!test || test.questions.length === 0)
-      throw new ApiError("Data tes tidak valid", 404);
-    // Gunakan reduce agar kode lebih ringkas (clean code)
-    const correctCount = answers.reduce((count: number, ans: any) => {
-      const q = test.questions.find((q) => q.id === ans.questionId);
-      return q?.correctAnswer === ans.selectedAnswer ? count + 1 : count;
-    }, 0);
-    const score = (correctCount / test.questions.length) * 100;
-    return await this.prisma.testResult.create({
-      data: { userId, preSelectionTestId: test.id, score },
+      throw new ApiError("Tes tidak valid", 404);
+    const score = this.calculateScore(test.questions, answers);
+
+    return await this.prisma.$transaction(async (tx) => {
+      const result = await tx.testResult.create({
+        data: { userId, preSelectionTestId: test.id, score },
+      });
+      // Menghubungkan ke lamaran jika data lamaran sudah dibuat oleh (Fitur 1)
+      await tx.application.updateMany({
+        where: { userId, jobId },
+        data: { testResultId: result.id },
+      });
+      return result;
     });
   };
-
-  // Admin melihat semua hasil tes pelamar
-  getTestResults = async (testId: number, adminId: number) => {
-    const test = await this.prisma.preSelectionTest.findFirst({
-      where: { id: testId, job: { company: { adminId } } },
-    });
-    if (!test)
-      throw new ApiError("Test tidak ditemukan atau bukan milik Anda", 404);
-
-    return await this.prisma.testResult.findMany({
-      where: { preSelectionTestId: testId },
-      include: {
-        application: {
-          include: {
-            user: {
-              select: {
-                id: true,
-                fullName: true,
-                email: true,
-                profilePhoto: true,
-              },
-            },
-          },
-        },
-      },
-      orderBy: { score: "desc" }, // urutkan dari skor tertinggi
-    });
-  };
+  // ========================= USER - FEATUR 1 (END) =========================
 }
