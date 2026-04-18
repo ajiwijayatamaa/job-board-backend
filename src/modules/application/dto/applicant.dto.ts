@@ -63,3 +63,24 @@ export class UpdateApplicantStatusDTO {
   @IsString({ message: "Alasan penolakan harus berupa string" })
   rejectionReason?: string;
 }
+
+export class ApplyJobDTO {
+  @IsNotEmpty({ message: "Job ID tidak boleh kosong" })
+  @IsNumber({}, { message: "Job ID harus berupa angka" })
+  jobId!: number;
+
+  @IsNotEmpty({ message: "CV ID tidak boleh kosong" })
+  @IsNumber({}, { message: "CV ID harus berupa angka" })
+  cvId!: number;
+
+  @IsOptional()
+  @IsNumber({}, { message: "Ekspektasi gaji harus berupa angka" })
+  @Min(0, { message: "Ekspektasi gaji tidak boleh negatif" })
+  expectedSalary?: number;
+
+  @IsOptional()
+  @IsString({ message: "Cover letter harus berupa string" })
+  coverLetter?: string;
+}
+
+export class GetMyApplicationsDTO extends PaginationQueryParams {}

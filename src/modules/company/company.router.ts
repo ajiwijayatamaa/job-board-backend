@@ -1,21 +1,23 @@
-import { Router } from "express";
+import express, { Router } from "express";
 import { Role } from "../../generated/prisma/enums.js";
 import { AuthMiddleware } from "../../middlewares/auth.middleware.js";
+import { ValidationMiddleware } from "../../middlewares/validation.middleware.js";
 import { CompanyController } from "./company.controller.js";
+import { CreateCompanyDTO, UpdateCompanyDTO } from "./dto/company.dto.js";
 
 export class CompanyRouter {
   private router: Router;
-  private controller: CompanyController;
-  private authMiddleware: AuthMiddleware;
 
-  constructor() {
-    this.router = Router();
-    this.controller = new CompanyController();
-    this.authMiddleware = new AuthMiddleware();
-    this.initializeRoutes();
+  constructor(
+    private controller: CompanyController,
+    private authMiddleware: AuthMiddleware,
+    private validationMiddleware: ValidationMiddleware,
+  ) {
+    this.router = express.Router();
+    this.initRoutes();
   }
 
-  private initializeRoutes(): void {
+  private initRoutes = (): void => {
     const verifyToken = this.authMiddleware.verifyToken(
       process.env.JWT_SECRET as string
     );
@@ -26,27 +28,29 @@ export class CompanyRouter {
       "/",
       verifyToken,
       verifyAdmin,
-      this.controller.create
+      this.validationMiddleware.validateBody(CreateCompanyDTO),
+      this.controller.create,
     );
 
     this.router.get(
       "/me",
       verifyToken,
       verifyAdmin,
-      this.controller.getMyCompany
+      this.controller.getMyCompany,
     );
 
     this.router.patch(
       "/me",
       verifyToken,
       verifyAdmin,
-      this.controller.updateMyCompany
+      this.validationMiddleware.validateBody(UpdateCompanyDTO),
+      this.controller.updateMyCompany,
     );
 
     this.router.get("/:id", this.controller.getById);
-  }
+  };
 
-  public getRouter(): Router {
+  getRouter = (): Router => {
     return this.router;
-  }
+  };
 }

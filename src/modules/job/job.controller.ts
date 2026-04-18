@@ -1,10 +1,19 @@
 import { plainToInstance } from "class-transformer";
 import { Request, Response } from "express";
 import { JobService } from "./job.service.js";
-import { GetJobsDTO, UpdateJobDTO, UpdateJobStatusDTO } from "./dto/job.dto.js";
+import { JobPublicService } from "./job-public.service.js";
+import {
+  GetJobsDTO,
+  GetPublicJobsDTO,
+  UpdateJobDTO,
+  UpdateJobStatusDTO,
+} from "./dto/job.dto.js";
 
 export class JobController {
-  constructor(private jobService: JobService) {}
+  constructor(
+    private jobService: JobService,
+    private jobPublicService: JobPublicService,
+  ) {}
 
   getJobs = async (req: Request, res: Response) => {
     const query = plainToInstance(GetJobsDTO, req.query);
@@ -51,6 +60,24 @@ export class JobController {
     const id = Number(req.params.id);
     const adminId = res.locals.existingUser.id;
     const result = await this.jobService.deleteJob(id, adminId);
+    res.status(200).send(result);
+  };
+
+  getPublicJobs = async (req: Request, res: Response) => {
+    const query = plainToInstance(GetPublicJobsDTO, req.query);
+    const result = await this.jobPublicService.getPublicJobs(query);
+    res.status(200).send(result);
+  };
+
+  getPublicJobById = async (req: Request, res: Response) => {
+    const id = Number(req.params.id);
+    const result = await this.jobPublicService.getPublicJobById(id);
+    res.status(200).send(result);
+  };
+
+  getRecommendedJobs = async (req: Request, res: Response) => {
+    const limit = req.query.limit ? Number(req.query.limit) : 4;
+    const result = await this.jobPublicService.getRecommendedJobs(limit);
     res.status(200).send(result);
   };
 }

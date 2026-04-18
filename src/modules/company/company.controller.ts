@@ -1,91 +1,47 @@
-import { NextFunction, Request, Response } from "express";
+import { Request, Response } from "express";
 import { CompanyService } from "./company.service.js";
 import { ApiError } from "../../utils/api-error.js";
+import { CreateCompanyDTO, UpdateCompanyDTO } from "./dto/company.dto.js";
 
 export class CompanyController {
-  private service: CompanyService;
+  constructor(private service: CompanyService) {}
 
-  constructor() {
-    this.service = new CompanyService();
-  }
+  create = async (req: Request, res: Response) => {
+    const adminId = res.locals.existingUser.id;
+    const body = req.body as CreateCompanyDTO;
 
-  create = async (req: Request, res: Response, next: NextFunction) => {
-    try {
-      const adminId = res.locals.existingUser?.id;
-      if (!adminId) return next(new ApiError("Unauthorized", 401));
+    const result = await this.service.create(adminId, body);
 
-      const { companyName, phone, description, address, latitude, longitude } =
-        req.body;
-
-      if (!companyName) {
-        return next(new ApiError("companyName is required", 400));
-      }
-
-      const result = await this.service.create(adminId, {
-        companyName,
-        phone,
-        description,
-        address,
-        latitude,
-        longitude,
-      });
-
-      res.status(201).json(result);
-    } catch (error) {
-      next(error);
-    }
+    res.status(201).send(result);
   };
 
-  getMyCompany = async (req: Request, res: Response, next: NextFunction) => {
-    try {
-      const adminId = res.locals.existingUser?.id;
-      if (!adminId) return next(new ApiError("Unauthorized", 401));
+  getMyCompany = async (req: Request, res: Response) => {
+    const adminId = res.locals.existingUser.id;
 
-      const result = await this.service.getByAdminId(adminId);
-      res.status(200).json(result);
-    } catch (error) {
-      next(error);
-    }
+    const result = await this.service.getByAdminId(adminId);
+    res.status(200).send(result);
   };
 
-  getById = async (req: Request, res: Response, next: NextFunction) => {
-    try {
-      const rawId = Array.isArray(req.params.id)
-        ? req.params.id[0]
-        : req.params.id;
-      const companyId = parseInt(rawId);
+  getById = async (req: Request, res: Response) => {
+    const rawId = Array.isArray(req.params.id)
+      ? req.params.id[0]
+      : req.params.id;
+    const companyId = parseInt(rawId);
 
-      if (Number.isNaN(companyId)) {
-        return next(new ApiError("Invalid company id", 400));
-      }
-
-      const result = await this.service.getById(companyId);
-      res.status(200).json(result);
-    } catch (error) {
-      next(error);
+    if (Number.isNaN(companyId)) {
+      throw new ApiError("Invalid company id", 400);
     }
+
+    const result = await this.service.getById(companyId);
+    res.status(200).send(result);
   };
 
-  updateMyCompany = async (req: Request, res: Response, next: NextFunction) => {
-    try {
-      const adminId = res.locals.existingUser?.id;
-      if (!adminId) return next(new ApiError("Unauthorized", 401));
+  updateMyCompany = async (req: Request, res: Response) => {
+    const adminId = res.locals.existingUser.id;
+    const body = req.body as UpdateCompanyDTO;
 
-      const { companyName, phone, description, address, latitude, longitude } =
-        req.body;
+    const result = await this.service.updateByAdminId(adminId, body);
 
-      const result = await this.service.updateByAdminId(adminId, {
-        companyName,
-        phone,
-        description,
-        address,
-        latitude,
-        longitude,
-      });
-
-      res.status(200).json(result);
-    } catch (error) {
-      next(error);
-    }
+    res.status(200).send(result);
   };
 }

@@ -1,15 +1,21 @@
-import { NextFunction, Request, Response } from "express";
+import { Request, Response } from "express";
 import { UserService } from "./user.service.js";
+import { UpdateProfileDTO } from "../user/dto/user.dto.js";
 
 export class UserController {
-  private userService = new UserService();
+  constructor(private service: UserService) {}
 
-  create = async (req: Request, res: Response, next: NextFunction) => {
-    try {
-      const result = await this.userService.create(req.body);
-      res.status(201).json(result);
-    } catch (error) {
-      next(error);
-    };
-  }
+  getProfile = async (req: Request, res: Response) => {
+    const userId = res.locals.existingUser.id;
+    const result = await this.service.getProfile(userId);
+    res.status(200).send(result);
+  };
+
+  updateProfile = async (req: Request, res: Response) => {
+    const userId = res.locals.existingUser.id;
+    const body = req.body as UpdateProfileDTO;
+    const file = req.file;
+    const result = await this.service.updateProfile(userId, body, file);
+    res.status(200).send(result);
+  };
 }

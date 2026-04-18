@@ -18,19 +18,29 @@ import { JobService } from "./modules/job/job.service.js";
 import { JobController } from "./modules/job/job.controller.js";
 import { JobRouter } from "./modules/job/job.router.js";
 import { ApplicantService } from "./modules/application/application.service.js";
+import { ApplicantUserService } from "./modules/application/applicant-user.service.js";
 import { ApplicantController } from "./modules/application/application.controller.js";
 import { ApplicantRouter } from "./modules/application/application.router.js";
-import { AuthRouter } from "./modules/auth/auth.routes.js";
-import { CompanyRouter } from "./modules/company/company.routes.js";
+import { AuthService } from "./modules/auth/auth.service.js";
+import { AuthController } from "./modules/auth/auth.controller.js";
+import { AuthRouter } from "./modules/auth/auth.router.js";
+import { CompanyService } from "./modules/company/company.service.js";
+import { CompanyController } from "./modules/company/company.controller.js";
+import { CompanyRouter } from "./modules/company/company.router.js";
+import { CVService } from "./modules/cv/cv.service.js";
+import { CVController } from "./modules/cv/cv.controller.js";
 import { CVRouter } from "./modules/cv/cv.router.js";
 import { PreSelectionTestController } from "./modules/pre-selection-test/pre-selection-test.controller.js";
 import { PreSelectionTestRouter } from "./modules/pre-selection-test/pre-selection-test.router.js";
 import { PreSelectionTestService } from "./modules/pre-selection-test/pre-selection-test.service.js";
-import { UserRouter } from "./modules/user/user.routes.js";
+import { UserService } from "./modules/user/user.service.js";
+import { UserController } from "./modules/user/user.controller.js";
+import { UserRouter } from "./modules/user/user.router.js";
 import { InterviewService } from "./modules/interview/interview.service.js";
 import { InterviewController } from "./modules/interview/interview.controller.js";
 import { InterviewRouter } from "./modules/interview/interview.router.js";
 import { initScheduler } from "./scripts/index.js";
+import { JobPublicService } from "./modules/job/job-public.service.js";
 
 const PORT = 8000;
 
@@ -61,15 +71,28 @@ export class App {
     const preSelectionTestService = new PreSelectionTestService(prismaClient);
     const cloudinaryService = new CloudinaryService();
     const jobService = new JobService(prismaClient, cloudinaryService);
+    const jobPublicService = new JobPublicService(prismaClient);
+    const authService = new AuthService(prismaClient, mailService);
+    const userService = new UserService(prismaClient, cloudinaryService);
+    const companyService = new CompanyService(prismaClient);
+    const cvService = new CVService(prismaClient, cloudinaryService);
     const applicantService = new ApplicantService(prismaClient);
+    const applicantUserService = new ApplicantUserService(prismaClient);
     const interviewService = new InterviewService(prismaClient, mailService);
 
     // controllers
     const preSelectionTestController = new PreSelectionTestController(
       preSelectionTestService,
     );
-    const jobController = new JobController(jobService);
-    const applicantController = new ApplicantController(applicantService);
+    const authController = new AuthController(authService);
+    const userController = new UserController(userService);
+    const companyController = new CompanyController(companyService);
+    const cvController = new CVController(cvService);
+    const jobController = new JobController(jobService, jobPublicService);
+    const applicantController = new ApplicantController(
+      applicantService,
+      applicantUserService,
+    );
     const interviewController = new InterviewController(interviewService);
 
     //middlewares
@@ -81,6 +104,28 @@ export class App {
     const preSelectionTestRouter = new PreSelectionTestRouter(
       preSelectionTestController,
       authMiddleware,
+      validationMiddleware,
+    );
+    const authRouter = new AuthRouter(
+      authController,
+      authMiddleware,
+      validationMiddleware,
+    );
+    const userRouter = new UserRouter(
+      userController,
+      authMiddleware,
+      validationMiddleware,
+      uploadMiddleware,
+    );
+    const companyRouter = new CompanyRouter(
+      companyController,
+      authMiddleware,
+      validationMiddleware,
+    );
+    const cvRouter = new CVRouter(
+      cvController,
+      authMiddleware,
+      uploadMiddleware,
       validationMiddleware,
     );
     const jobRouter = new JobRouter(
@@ -99,12 +144,6 @@ export class App {
       authMiddleware,
       validationMiddleware,
     );
-
-    const authRouter = new AuthRouter();
-    const userRouter = new UserRouter();
-    const companyRouter = new CompanyRouter();
-
-    const cvRouter = new CVRouter();
 
     // entry point — USER (Feature 1)
     this.app.use("/auth", authRouter.getRouter());

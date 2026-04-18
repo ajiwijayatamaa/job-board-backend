@@ -1,5 +1,9 @@
 import { interviewReminderScheduler } from "./interview.js";
+import { jobDeadlineScheduler } from "./job.js";
+import { tokenCleanupScheduler } from "./token.js";
 
 export const initScheduler = () => {
-  interviewReminderScheduler(); // scheduler baru untuk reminder interview H-1
+  interviewReminderScheduler();
+  jobDeadlineScheduler(); // Menangani penutupan lowongan otomatis berdasarkan deadline
+  tokenCleanupScheduler(); // Menghapus token verifikasi yang expired > 24 jam
 };

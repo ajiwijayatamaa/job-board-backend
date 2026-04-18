@@ -5,6 +5,7 @@ import { ValidationMiddleware } from "../../middlewares/validation.middleware.js
 import { JobController } from "./job.controller.js";
 import {
   CreateJobDTO,
+  GetPublicJobsDTO,
   UpdateJobDTO,
   UpdateJobStatusDTO,
 } from "./dto/job.dto.js";
@@ -23,6 +24,21 @@ export class JobRouter {
   }
 
   private initRoutes = () => {
+    // ========================= USER ROUTES (PUBLIC) =========================
+    // GET — list lowongan publik (mendukung filter & search)
+    this.router.get(
+      "/public",
+      this.validationMiddleware.validateQuery(GetPublicJobsDTO),
+      this.jobController.getPublicJobs,
+    );
+
+    // GET — lowongan rekomendasi / terbaru untuk landing page
+    this.router.get("/recommended", this.jobController.getRecommendedJobs);
+
+    // GET — detail lowongan publik berdasarkan ID
+    this.router.get("/public/:id", this.jobController.getPublicJobById);
+
+    // ========================= ADMIN ROUTES =========================
     // GET — list semua job milik company
     this.router.get(
       "/",

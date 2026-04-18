@@ -13,6 +13,15 @@ export class JobService {
     private prisma: PrismaClient,
     private cloudinaryService: CloudinaryService,
   ) {}
+
+  private async getJobOrThrow(id: number, adminId: number) {
+    const job = await this.prisma.job.findFirst({
+      where: { id, company: { adminId } },
+    });
+    if (!job) throw new ApiError("Lowongan tidak ditemukan atau bukan milik Anda", 404);
+    return job;
+  }
+
   // ========================= ADMIN - FEATUR 2 (START) =========================
   getJobs = async (query: GetJobsDTO & { adminId: number }) => {
     const { page, take, sortBy, sortOrder, search, category, city, adminId } =
@@ -22,16 +31,9 @@ export class JobService {
       company: { adminId },
     };
 
-    if (search) {
-      whereClause.title = { contains: search, mode: "insensitive" };
-    }
-
-    if (category) {
-      whereClause.category = { contains: category, mode: "insensitive" };
-    }
-    if (city) {
-      whereClause.city = { contains: city, mode: "insensitive" };
-    }
+    if (search) whereClause.title = { contains: search, mode: "insensitive" };
+    if (category) whereClause.category = { contains: category, mode: "insensitive" };
+    if (city) whereClause.city = { contains: city, mode: "insensitive" };
 
     const jobs = await this.prisma.job.findMany({
       where: whereClause,
@@ -54,18 +56,15 @@ export class JobService {
   };
 
   getJobById = async (id: number, adminId: number) => {
-    const job = await this.prisma.job.findFirst({
+    return this.prisma.job.findFirst({
       where: { id, company: { adminId } },
       include: {
-        _count: {
-          select: { applications: true },
-        },
+        _count: { select: { applications: true } },
       },
+    }).then((job) => {
+      if (!job) throw new ApiError("Lowongan tidak ditemukan", 404);
+      return job;
     });
-
-    if (!job) throw new ApiError("Lowongan tidak ditemukan", 404);
-
-    return job;
   };
 
   createJob = async (
@@ -108,12 +107,7 @@ export class JobService {
     adminId: number,
     banner?: Express.Multer.File,
   ) => {
-    const job = await this.prisma.job.findFirst({
-      where: { id, company: { adminId } },
-    });
-
-    if (!job)
-      throw new ApiError("Lowongan tidak ditemukan atau bukan milik Anda", 404);
+    const job = await this.getJobOrThrow(id, adminId);
 
     let bannerUrl = job.banner;
     if (banner) {
@@ -146,12 +140,7 @@ export class JobService {
     body: UpdateJobStatusDTO,
     adminId: number,
   ) => {
-    const job = await this.prisma.job.findFirst({
-      where: { id, company: { adminId } },
-    });
-
-    if (!job)
-      throw new ApiError("Lowongan tidak ditemukan atau bukan milik Anda", 404);
+    await this.getJobOrThrow(id, adminId);
 
     const updatedJob = await this.prisma.job.update({
       where: { id },
@@ -171,12 +160,7 @@ export class JobService {
   };
 
   deleteJob = async (id: number, adminId: number) => {
-    const job = await this.prisma.job.findFirst({
-      where: { id, company: { adminId } },
-    });
-
-    if (!job)
-      throw new ApiError("Lowongan tidak ditemukan atau bukan milik Anda", 404);
+    const job = await this.getJobOrThrow(id, adminId);
 
     if (job.banner) {
       await this.cloudinaryService.deleteByUrl(job.banner);
@@ -186,9 +170,4 @@ export class JobService {
 
     return { message: "Lowongan berhasil dihapus" };
   };
-  // ========================= ADMIN - FEATUR 2 (END) =========================
-
-  // ========================= USER - FEATUR 1 (START) =========================
-
-  // ========================= USER - FEATUR 1 (END) =========================
 }

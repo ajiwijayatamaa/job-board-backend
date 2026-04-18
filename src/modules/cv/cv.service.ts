@@ -1,43 +1,57 @@
-import { prisma } from "../../lib/prisma.js";
+import { PrismaClient } from "../../generated/prisma/client.js";
 import { ApiError } from "../../utils/api-error.js";
-import { CloudinaryService } from "../../modules/cloudinary/cloudinary.service.js";
+import { CloudinaryService } from "../cloudinary/cloudinary.service.js";
+import { CreateCVDTO } from "./dto/cv.dto.js";
 
 export class CVService {
-  private cloudinary = new CloudinaryService();
+  constructor(
+    private prisma: PrismaClient,
+    private cloudinaryService: CloudinaryService,
+  ) {}
 
-  async create(
+  create = async (
     userId: number,
-    cvName: string,
+    body: CreateCVDTO,
     file?: Express.Multer.File
-  ) {
+  ) => {
     if (!file) {
       throw new ApiError("CV file is required", 400);
     }
 
-    const { url, publicId } = await this.cloudinary.uploadPDF(
+    const { url } = await this.cloudinaryService.uploadPDF(
       file,
       "cvs",
       `cv-${userId}-${Date.now()}.pdf`
     );
 
-    return prisma.cV.create({
+    const cv = await this.prisma.cV.create({
       data: {
         userId,
-        cvName,
+        cvName: body.cvName,
         fileUrl: url,
       },
     });
-  }
 
-  async getAll(userId: number) {
-    return prisma.cV.findMany({
+    return {
+      message: "CV uploaded success",
+      data: cv,
+    };
+  };
+
+  getAll = async (userId: number) => {
+    const items = await this.prisma.cV.findMany({
       where: { userId },
       orderBy: { createdAt: "desc" },
     });
-  }
 
-  async setPrimary(userId: number, cvId: number) {
-    const cv = await prisma.cV.findFirst({
+    return {
+      message: "Get all CVs success",
+      data: items,
+    };
+  };
+
+  setPrimary = async (userId: number, cvId: number) => {
+    const cv = await this.prisma.cV.findFirst({
       where: { id: cvId, userId },
     });
 
@@ -45,28 +59,40 @@ export class CVService {
       throw new ApiError("CV not found", 404);
     }
 
-    await prisma.cV.updateMany({
+    await this.prisma.cV.updateMany({
       where: { userId },
       data: { isPrimary: false },
     });
 
-    return prisma.cV.update({
+    const updatedCv = await this.prisma.cV.update({
       where: { id: cvId },
       data: { isPrimary: true },
     });
-  }
 
-  async delete(userId: number, cvId: number) {
-    const cv = await prisma.cV.findFirst({
+    return {
+      message: "Primary CV updated success",
+      data: updatedCv,
+    };
+  };
+
+  delete = async (userId: number, cvId: number) => {
+    const cv = await this.prisma.cV.findFirst({
       where: { id: cvId, userId },
     });
 
     if (!cv) {
       throw new ApiError("CV not found", 404);
-    };
+    }
 
-    await prisma.cV.delete({
+    // Hapus file dari Cloudinary (PDF menggunakan resourceType: "raw")
+    await this.cloudinaryService.deleteByUrl(cv.fileUrl, "raw");
+
+    await this.prisma.cV.delete({
       where: { id: cvId },
     });
-  }
+
+    return {
+      message: "CV deleted success",
+    };
+  };
 }

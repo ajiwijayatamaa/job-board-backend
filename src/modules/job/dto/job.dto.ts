@@ -100,8 +100,8 @@ export class UpdateJobDTO {
 export class UpdateJobStatusDTO {
   @IsNotEmpty({ message: "Status tidak boleh kosong" })
   @IsString({ message: "Status harus berupa string" })
-  @IsIn(["DRAFT", "PUBLISHED"], {
-    message: "Status harus DRAFT atau PUBLISHED",
+  @IsIn(["DRAFT", "PUBLISHED", "CLOSED"], {
+    message: "Status harus DRAFT, PUBLISHED, atau CLOSED",
   })
   status!: "DRAFT" | "PUBLISHED" | "CLOSED";
 }
@@ -118,4 +118,82 @@ export class GetJobsDTO extends PaginationQueryParams {
   @IsOptional()
   @IsString({ message: "City harus berupa string" })
   city?: string;
+
+  @IsOptional()
+  @Transform(({ value }) => (value !== undefined ? parseFloat(value) : undefined))
+  @IsNumber({}, { message: "Latitude harus berupa angka" })
+  latitude?: number;
+
+  @IsOptional()
+  @Transform(({ value }) => (value !== undefined ? parseFloat(value) : undefined))
+  @IsNumber({}, { message: "Longitude harus berupa angka" })
+  longitude?: number;
+
+  @IsOptional()
+  @Transform(({ value }) => (value !== undefined ? parseFloat(value) : undefined))
+  @IsNumber({}, { message: "Min salary harus berupa angka" })
+  @Min(0, { message: "Gaji tidak boleh negatif" })
+  minSalary?: number;
+
+  @IsOptional()
+  @Transform(({ value }) => (value !== undefined ? parseFloat(value) : undefined))
+  @IsNumber({}, { message: "Max salary harus berupa angka" })
+  @Min(0, { message: "Gaji tidak boleh negatif" })
+  maxSalary?: number;
+
+  @IsOptional()
+  @Transform(({ value }) => (value !== undefined ? new Date(value) : undefined))
+  @IsDate({ message: "Start date harus berupa tanggal yang valid" })
+  startDate?: Date;
+
+  @IsOptional()
+  @Transform(({ value }) => (value !== undefined ? new Date(value) : undefined))
+  @IsDate({ message: "End date harus berupa tanggal yang valid" })
+  endDate?: Date;
+}
+
+export class GetPublicJobsDTO extends PaginationQueryParams {
+  @IsOptional()
+  @IsString({ message: "Search harus berupa string" })
+  search?: string;
+
+  @IsOptional()
+  @IsString({ message: "Category harus berupa string" })
+  category?: string;
+
+  @IsOptional()
+  @IsString({ message: "City harus berupa string" })
+  city?: string;
+
+  @IsOptional()
+  @Transform(({ value }) => (value !== undefined ? parseFloat(value) : undefined))
+  @IsNumber({}, { message: "Latitude harus berupa angka" })
+  latitude?: number;
+
+  @IsOptional()
+  @Transform(({ value }) => (value !== undefined ? parseFloat(value) : undefined))
+  @IsNumber({}, { message: "Longitude harus berupa angka" })
+  longitude?: number;
+
+  @IsOptional()
+  @Transform(({ value }) => (value !== undefined ? parseFloat(value) : undefined))
+  @IsNumber({}, { message: "Min salary harus berupa angka" })
+  @Min(0, { message: "Gaji tidak boleh negatif" })
+  minSalary?: number;
+
+  @IsOptional()
+  @Transform(({ value }) => (value !== undefined ? parseFloat(value) : undefined))
+  @IsNumber({}, { message: "Max salary harus berupa angka" })
+  @Min(0, { message: "Gaji tidak boleh negatif" })
+  maxSalary?: number;
+
+  @IsOptional()
+  @Transform(({ value }) => (value !== undefined ? new Date(value) : undefined))
+  @IsDate({ message: "Start date harus berupa tanggal yang valid" })
+  startDate?: Date;
+
+  @IsOptional()
+  @Transform(({ value }) => (value !== undefined ? new Date(value) : undefined))
+  @IsDate({ message: "End date harus berupa tanggal yang valid" })
+  endDate?: Date;
 }
