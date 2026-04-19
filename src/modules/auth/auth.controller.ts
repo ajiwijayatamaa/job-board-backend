@@ -1,51 +1,59 @@
-import { NextFunction, Request, Response } from "express";
+import { plainToInstance } from "class-transformer";
+import { Request, Response } from "express";
 import { AuthService } from "./auth.service.js";
+import { ForgotPasswordDTO, LoginDTO, RegisterDTO, ResetPasswordDTO } from "./dto/auth.dto.js";
 import { ApiError } from "../../utils/api-error.js";
 
 export class AuthController {
-  private service: AuthService;
+  constructor(private service: AuthService) {}
 
-  constructor() {
-    this.service = new AuthService();
-  }
+  register = async (req: Request, res: Response) => {
+    const body = plainToInstance(RegisterDTO, req.body);
+    const result = await this.service.register(body);
 
-  register = async (req: Request, res: Response, next: NextFunction) => {
-    try {
-      const { name, email, password, role } = req.body;
+    res.status(201).send(result);
+  };
 
-      if (!name || !email || !password) {
-        return next(new ApiError("Name, email and password are required", 400));
-      }
+  login = async (req: Request, res: Response) => {
+    const body = plainToInstance(LoginDTO, req.body);
+    const result = await this.service.login(body);
 
-      const result = await this.service.register({
-        name,
-        email,
-        password,
-        role,
-      });
+    res.status(200).send(result);
+  };
 
-      res.status(201).json(result);
-    } catch (error) {
-      next(error);
+  forgotPassword = async (req: Request, res: Response) => {
+    const body = plainToInstance(ForgotPasswordDTO, req.body);
+
+    await this.service.forgotPassword(body.email);
+
+    res.status(200).send({
+      message: "If your email is registered, you will receive a reset link shortly",
+    });
+  };
+
+  resetPassword = async (req: Request, res: Response) => {
+    const body = plainToInstance(ResetPasswordDTO, req.body);
+    const result = await this.service.resetPassword(body);
+
+    res.status(200).send(result);
+  };
+
+  verifyEmail = async (req: Request, res: Response) => {
+    const { token } = req.query;
+
+    if (typeof token !== "string") {
+      throw new ApiError("Invalid or missing verification token", 400);
     }
-  }
 
-  login = async (req: Request, res: Response, next: NextFunction) => {
-    try {
-      const { email, password } = req.body;
+    const result = await this.service.verifyEmail(token);
 
-      if (!email || !password) {
-        return next(new ApiError("Email and password are required", 400));
-      }
+    res.status(200).send(result);
+  };
 
-      const result = await this.service.login({
-        email,
-        password,
-      });
+  resendVerification = async (req: Request, res: Response) => {
+    const userId = res.locals.existingUser.id;
+    const result = await this.service.resendVerification(userId);
 
-      res.status(200).json(result);
-    } catch (error) {
-      next(error);
-    };
-  }
+    res.status(200).send(result);
+  };
 }

@@ -20,13 +20,17 @@ import { JobRouter } from "./modules/job/job.router.js";
 import { ApplicantService } from "./modules/application/application.service.js";
 import { ApplicantController } from "./modules/application/application.controller.js";
 import { ApplicantRouter } from "./modules/application/application.router.js";
-import { AuthRouter } from "./modules/auth/auth.routes.js";
+import { AuthController } from "./modules/auth/auth.controller.js";
+import { AuthService } from "./modules/auth/auth.service.js";
+import { AuthRouter } from "./modules/auth/auth.router.js";
 import { CompanyRouter } from "./modules/company/company.routes.js";
 import { CVRouter } from "./modules/cv/cv.router.js";
 import { PreSelectionTestController } from "./modules/pre-selection-test/pre-selection-test.controller.js";
 import { PreSelectionTestRouter } from "./modules/pre-selection-test/pre-selection-test.router.js";
 import { PreSelectionTestService } from "./modules/pre-selection-test/pre-selection-test.service.js";
-import { UserRouter } from "./modules/user/user.routes.js";
+import { UserController } from "./modules/user/user.controller.js";
+import { UserService } from "./modules/user/user.service.js";
+import { UserRouter } from "./modules/user/user.router.js";
 import { InterviewService } from "./modules/interview/interview.service.js";
 import { InterviewController } from "./modules/interview/interview.controller.js";
 import { InterviewRouter } from "./modules/interview/interview.router.js";
@@ -63,6 +67,8 @@ export class App {
     const jobService = new JobService(prismaClient, cloudinaryService);
     const applicantService = new ApplicantService(prismaClient);
     const interviewService = new InterviewService(prismaClient, mailService);
+    const authService = new AuthService(prismaClient, mailService);
+    const userService = new UserService(prismaClient);
 
     // controllers
     const preSelectionTestController = new PreSelectionTestController(
@@ -71,6 +77,8 @@ export class App {
     const jobController = new JobController(jobService);
     const applicantController = new ApplicantController(applicantService);
     const interviewController = new InterviewController(interviewService);
+    const authController = new AuthController(authService);
+    const userController = new UserController(userService);
 
     //middlewares
     const authMiddleware = new AuthMiddleware();
@@ -99,9 +107,17 @@ export class App {
       authMiddleware,
       validationMiddleware,
     );
-
-    const authRouter = new AuthRouter();
-    const userRouter = new UserRouter();
+    const authRouter = new AuthRouter(
+      authController,
+      validationMiddleware,
+      authMiddleware,
+    );
+    const userRouter = new UserRouter(
+      userController,
+      authMiddleware,
+      uploadMiddleware,
+      validationMiddleware,
+    );
     const companyRouter = new CompanyRouter();
 
     const cvRouter = new CVRouter();
