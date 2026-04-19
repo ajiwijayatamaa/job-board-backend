@@ -5,6 +5,7 @@ import {
   CreatePreSelectionTestDTO,
   UpdatePreSelectionTestDTO,
   SubmitTestDTO,
+  GetTestResultsDTO,
 } from "./dto/pre-selection-test.dto.js";
 
 export class PreSelectionTestController {
@@ -66,9 +67,11 @@ export class PreSelectionTestController {
   getTestResults = async (req: Request, res: Response) => {
     const testId = Number(req.params.testId);
     const adminId = res.locals.existingUser.id;
+    const query = plainToInstance(GetTestResultsDTO, req.query); // tambah ini
     const result = await this.preSelectionTestService.getTestResults(
       testId,
       adminId,
+      query, // tambah ini
     );
     res.status(200).send(result);
   };

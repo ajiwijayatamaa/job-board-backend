@@ -10,6 +10,7 @@ import {
   IsString,
   ValidateNested,
 } from "class-validator";
+import { PaginationQueryParams } from "../../pagination/dto/pagination.dto.js";
 
 export class CreateTestOptionDTO {
   @IsNotEmpty({ message: "Teks opsi tidak boleh kosong" })
@@ -90,4 +91,10 @@ export class SubmitTestDTO {
   @ValidateNested({ each: true })
   @Type(() => AnswerItemDTO)
   answers!: AnswerItemDTO[];
+}
+
+export class GetTestResultsDTO extends PaginationQueryParams {
+  @IsOptional()
+  @IsString({ message: "Search harus berupa string" })
+  search?: string; // filter berdasarkan nama user
 }

@@ -1,9 +1,10 @@
-import { PrismaClient } from "../../generated/prisma/client.js";
+import { Prisma, PrismaClient } from "../../generated/prisma/client.js";
 import { ApiError } from "../../utils/api-error.js";
 import {
   CreatePreSelectionTestDTO,
   UpdatePreSelectionTestDTO,
   SubmitTestDTO,
+  GetTestResultsDTO,
 } from "./dto/pre-selection-test.dto.js";
 
 export class PreSelectionTestService {
@@ -117,31 +118,54 @@ export class PreSelectionTestService {
   };
 
   // Admin melihat semua hasil tes pelamar
-  getTestResults = async (testId: number, adminId: number) => {
+  getTestResults = async (
+    testId: number,
+    adminId: number,
+    query: GetTestResultsDTO,
+  ) => {
     const test = await this.prisma.preSelectionTest.findFirst({
       where: { id: testId, job: { company: { adminId } } },
     });
     if (!test)
       throw new ApiError("Test tidak ditemukan atau bukan milik Anda", 404);
 
-    return await this.prisma.testResult.findMany({
-      where: { preSelectionTestId: testId },
-      include: {
+    const { page, take, sortBy, sortOrder, search } = query;
+
+    const whereClause: Prisma.TestResultWhereInput = {
+      preSelectionTestId: testId,
+      ...(search && {
         application: {
-          include: {
-            user: {
-              select: {
-                id: true,
-                fullName: true,
-                email: true,
-                profilePhoto: true,
-              },
+          user: { fullName: { contains: search, mode: "insensitive" } },
+        },
+      }),
+    };
+
+    const [results, total] = await this.prisma.$transaction([
+      this.prisma.testResult.findMany({
+        where: whereClause,
+        include: {
+          user: {
+            // ✅ ambil langsung dari TestResult
+            select: {
+              id: true,
+              fullName: true,
+              email: true,
+              profilePhoto: true,
             },
           },
+          application: true, // tetap include untuk info status lamaran
         },
-      },
-      orderBy: { score: "desc" }, // urutkan dari skor tertinggi
-    });
+        orderBy: { [sortBy]: sortOrder },
+        take,
+        skip: (page - 1) * take,
+      }),
+      this.prisma.testResult.count({ where: whereClause }),
+    ]);
+
+    return {
+      data: results,
+      meta: { page, take, total },
+    };
   };
   // ========================= ADMIN - FEATUR 2 (END) =========================
 
