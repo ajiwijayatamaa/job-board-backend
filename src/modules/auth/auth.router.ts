@@ -28,6 +28,14 @@ export class AuthRouter {
       this.controller.login,
     );
     this.router.post(
+      "/refresh",
+      this.controller.refresh,
+    );
+    this.router.post(
+      "/logout",
+      this.controller.logout,
+    );
+    this.router.post(
       "/forgot-password",
       this.validationMiddleware.validateBody(ForgotPasswordDTO),
       this.controller.forgotPassword,
@@ -43,7 +51,7 @@ export class AuthRouter {
     // Protected Routes
     this.router.post(
       "/resend-verification",
-      this.authMiddleware.verifyToken(process.env.JWT_SECRET!),
+      this.authMiddleware.verifyToken(process.env.JWT_ACCESS_SECRET!),
       this.controller.resendVerification,
     );
   };

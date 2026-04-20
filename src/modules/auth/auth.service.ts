@@ -27,7 +27,7 @@ export class AuthService {
       const vToken = this.generateRandomToken();
       const newUser = await tx.user.create({
         data: {
-          fullName: body.name,
+          fullName: body.fullName,
           email: body.email,
           password: hashedPassword,
           role: registerRole,
@@ -57,7 +57,7 @@ export class AuthService {
     );
     return {
       message: "Register success. Please check your email to verify your account.",
-      data: this.mapUserResponse(user, this.generateToken(user)),
+      data: this.mapUserResponse(user, this.generateAccessToken(user)),
     };
   };
 
@@ -123,9 +123,33 @@ export class AuthService {
     }
 
     return {
-      message: "Login success",
-      data: this.mapUserResponse(user, this.generateToken(user)),
+      message: "Login success", // Di sini Anda bisa menambahkan generateRefreshToken untuk diletakkan di cookie
+      data: this.mapUserResponse(user, this.generateAccessToken(user)),
     };
+  };
+
+  refresh = async (refreshToken: string) => {
+    try {
+      const payload = jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET!) as any;
+
+      const user = await this.prisma.user.findUnique({
+        where: { id: payload.id },
+        include: { company: true },
+      });
+
+      if (!user) throw new ApiError("User not found", 404);
+
+      // Saat refresh, kita menerbitkan Access Token baru menggunakan rahasia Access
+      const accessToken = this.generateAccessToken(user);
+      // Opsional: Implementasikan Refresh Token Rotation di sini jika diperlukan
+
+      return {
+        message: "Token refresh success",
+        data: this.mapUserResponse(user, accessToken),
+      };
+    } catch (err) {
+      throw new ApiError("Invalid or expired refresh token", 401);
+    }
   };
 
   forgotPassword = async (email: string) => {
@@ -174,8 +198,12 @@ export class AuthService {
     return { message: "Password reset success" };
   };
 
-  private generateToken = (user: { id: number; email: string; role: Role; isVerified: boolean }) => {
-    return jwt.sign({ ...user }, process.env.JWT_SECRET as string, { expiresIn: "20m" });
+  private generateAccessToken = (user: { id: number; email: string; role: Role; isVerified: boolean }) => {
+    return jwt.sign({ ...user }, process.env.JWT_ACCESS_SECRET as string, { expiresIn: "20m" });
+  };
+
+  private generateRefreshToken = (user: { id: number }) => {
+    return jwt.sign({ id: user.id }, process.env.JWT_REFRESH_SECRET as string, { expiresIn: "7d" });
   };
 
   private generateRandomToken(): string {
@@ -202,7 +230,7 @@ export class AuthService {
   ) {
     return {
       id: user.id,
-      name: user.fullName || "",
+      fullName: user.fullName || "",
       email: user.email,
       role: user.role,
       isVerified: user.isVerified,

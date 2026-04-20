@@ -3,6 +3,7 @@ import { Request, Response } from "express";
 import { AuthService } from "./auth.service.js";
 import { ForgotPasswordDTO, LoginDTO, RegisterDTO, ResetPasswordDTO } from "./dto/auth.dto.js";
 import { ApiError } from "../../utils/api-error.js";
+import { cookieOptions } from "../../config/cookie.js";
 
 export class AuthController {
   constructor(private service: AuthService) {}
@@ -18,6 +19,19 @@ export class AuthController {
     const body = plainToInstance(LoginDTO, req.body);
     const result = await this.service.login(body);
 
+    res.status(200).send(result);
+  };
+
+  logout = async (req: Request, res: Response) => {
+    res.clearCookie("accessToken", cookieOptions);
+    res.status(200).send({ message: "Logout success" });
+  };
+
+  refresh = async (req: Request, res: Response) => {
+    const refreshToken = req.cookies.refreshToken;
+    if (!refreshToken) throw new ApiError("Refresh token missing", 401);
+
+    const result = await this.service.refresh(refreshToken);
     res.status(200).send(result);
   };
 
