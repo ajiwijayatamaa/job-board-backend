@@ -12,28 +12,31 @@ import { prisma } from "./lib/prisma.js";
 import { AuthMiddleware } from "./middlewares/auth.middleware.js";
 import { UploadMiddleware } from "./middlewares/upload.middleware.js";
 import { ValidationMiddleware } from "./middlewares/validation.middleware.js";
-import { CloudinaryService } from "./modules/cloudinary/cloudinary.service.js";
-import { MailService } from "./modules/mail/mail.service.js";
-import { JobService } from "./modules/job/job.service.js";
-import { JobController } from "./modules/job/job.controller.js";
-import { JobRouter } from "./modules/job/job.router.js";
-import { ApplicantService } from "./modules/application/application.service.js";
+import { AnalyticsController } from "./modules/analytics/analytics.controller.js";
+import { AnalyticsRouter } from "./modules/analytics/analytics.router.js";
+import { AnalyticsService } from "./modules/analytics/analytics.service.js";
 import { ApplicantController } from "./modules/application/application.controller.js";
 import { ApplicantRouter } from "./modules/application/application.router.js";
+import { ApplicantService } from "./modules/application/application.service.js";
 import { AuthController } from "./modules/auth/auth.controller.js";
-import { AuthService } from "./modules/auth/auth.service.js";
 import { AuthRouter } from "./modules/auth/auth.router.js";
+import { AuthService } from "./modules/auth/auth.service.js";
+import { CloudinaryService } from "./modules/cloudinary/cloudinary.service.js";
 import { CompanyRouter } from "./modules/company/company.routes.js";
 import { CVRouter } from "./modules/cv/cv.router.js";
+import { InterviewController } from "./modules/interview/interview.controller.js";
+import { InterviewRouter } from "./modules/interview/interview.router.js";
+import { InterviewService } from "./modules/interview/interview.service.js";
+import { JobController } from "./modules/job/job.controller.js";
+import { JobRouter } from "./modules/job/job.router.js";
+import { JobService } from "./modules/job/job.service.js";
+import { MailService } from "./modules/mail/mail.service.js";
 import { PreSelectionTestController } from "./modules/pre-selection-test/pre-selection-test.controller.js";
 import { PreSelectionTestRouter } from "./modules/pre-selection-test/pre-selection-test.router.js";
 import { PreSelectionTestService } from "./modules/pre-selection-test/pre-selection-test.service.js";
 import { UserController } from "./modules/user/user.controller.js";
-import { UserService } from "./modules/user/user.service.js";
 import { UserRouter } from "./modules/user/user.router.js";
-import { InterviewService } from "./modules/interview/interview.service.js";
-import { InterviewController } from "./modules/interview/interview.controller.js";
-import { InterviewRouter } from "./modules/interview/interview.router.js";
+import { UserService } from "./modules/user/user.service.js";
 import { initScheduler } from "./scripts/index.js";
 
 const PORT = 8000;
@@ -67,6 +70,7 @@ export class App {
     const jobService = new JobService(prismaClient, cloudinaryService);
     const applicantService = new ApplicantService(prismaClient);
     const interviewService = new InterviewService(prismaClient, mailService);
+    const analyticsService = new AnalyticsService(prismaClient);
     const authService = new AuthService(prismaClient, mailService);
     const userService = new UserService(prismaClient);
 
@@ -77,6 +81,7 @@ export class App {
     const jobController = new JobController(jobService);
     const applicantController = new ApplicantController(applicantService);
     const interviewController = new InterviewController(interviewService);
+    const analyticsController = new AnalyticsController(analyticsService);
     const authController = new AuthController(authService);
     const userController = new UserController(userService);
 
@@ -104,6 +109,11 @@ export class App {
     );
     const interviewRouter = new InterviewRouter(
       interviewController,
+      authMiddleware,
+      validationMiddleware,
+    );
+    const analyticsRouter = new AnalyticsRouter(
+      analyticsController,
       authMiddleware,
       validationMiddleware,
     );
@@ -139,6 +149,7 @@ export class App {
     );
     this.app.use("/admin/jobs", jobRouter.getRouter());
     this.app.use("/admin/interviews", interviewRouter.getRouter());
+    this.app.use("/admin/analytics", analyticsRouter.getRouter());
   };
 
   private handleError = () => {
