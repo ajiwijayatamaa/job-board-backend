@@ -167,6 +167,36 @@ export class PreSelectionTestService {
       meta: { page, take, total },
     };
   };
+
+  // Admin melihat detail jawaban satu user
+  getAnswersByResult = async (testResultId: number, adminId: number) => {
+    const testResult = await this.prisma.testResult.findFirst({
+      where: {
+        id: testResultId,
+        preSelectionTest: { job: { company: { adminId } } },
+      },
+      include: {
+        user: {
+          select: { id: true, fullName: true, email: true, profilePhoto: true },
+        },
+        answers: {
+          include: {
+            question: {
+              include: { options: true },
+            },
+          },
+        },
+      },
+    });
+
+    if (!testResult)
+      throw new ApiError(
+        "Hasil tes tidak ditemukan atau bukan milik Anda",
+        404,
+      );
+
+    return testResult;
+  };
   // ========================= ADMIN - FEATUR 2 (END) =========================
 
   // ========================= USER - FEATUR 1 (START) =========================
@@ -206,10 +236,7 @@ export class PreSelectionTestService {
   submitTest = async (body: SubmitTestDTO, userId: number) => {
     const { jobId, answers } = body;
     const test = await this.prisma.preSelectionTest.findFirst({
-      where: {
-        jobId,
-        job: { preTest: true, status: "PUBLISHED" },
-      },
+      where: { jobId, job: { preTest: true, status: "PUBLISHED" } },
       include: { questions: true },
     });
 
@@ -228,10 +255,7 @@ export class PreSelectionTestService {
     return await this.prisma.$transaction(async (tx) => {
       const existingResult = await tx.testResult.findUnique({
         where: {
-          userId_preSelectionTestId: {
-            userId,
-            preSelectionTestId: test.id,
-          },
+          userId_preSelectionTestId: { userId, preSelectionTestId: test.id },
         },
       });
       if (existingResult)
@@ -240,10 +264,21 @@ export class PreSelectionTestService {
       const result = await tx.testResult.create({
         data: { userId, preSelectionTestId: test.id, score },
       });
+
+      // ✅ simpan semua jawaban user
+      await tx.testAnswer.createMany({
+        data: answers.map((a) => ({
+          testResultId: result.id,
+          questionId: a.questionId,
+          selectedAnswer: a.selectedAnswer,
+        })),
+      });
+
       await tx.application.updateMany({
         where: { userId, jobId },
         data: { testResultId: result.id },
       });
+
       return result;
     });
   };

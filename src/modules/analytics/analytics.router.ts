@@ -20,7 +20,7 @@ export class AnalyticsRouter {
     // GET — ringkasan total jobs, applications, status breakdown
     this.router.get(
       "/overview",
-      this.authMiddleware.verifyToken(process.env.JWT_SECRET!),
+      this.authMiddleware.verifyToken(process.env.JWT_ACCESS_SECRET!),
       this.authMiddleware.verifyRole(["ADMIN"]),
       this.analyticsController.getOverview,
     );
@@ -28,7 +28,7 @@ export class AnalyticsRouter {
     // GET — demografi pelamar (gender, usia, lokasi)
     this.router.get(
       "/demographics",
-      this.authMiddleware.verifyToken(process.env.JWT_SECRET!),
+      this.authMiddleware.verifyToken(process.env.JWT_ACCESS_SECRET!),
       this.authMiddleware.verifyRole(["ADMIN"]),
       this.validationMiddleware.validateQuery(GetAnalyticsDTO),
       this.analyticsController.getDemographics,
@@ -37,7 +37,7 @@ export class AnalyticsRouter {
     // GET — rata-rata salary berdasarkan kategori & kota
     this.router.get(
       "/salary-trends",
-      this.authMiddleware.verifyToken(process.env.JWT_SECRET!),
+      this.authMiddleware.verifyToken(process.env.JWT_ACCESS_SECRET!),
       this.authMiddleware.verifyRole(["ADMIN"]),
       this.validationMiddleware.validateQuery(GetAnalyticsDTO),
       this.analyticsController.getSalaryTrends,
@@ -46,7 +46,7 @@ export class AnalyticsRouter {
     // GET — minat pelamar berdasarkan kategori & job terpopuler
     this.router.get(
       "/applicant-interests",
-      this.authMiddleware.verifyToken(process.env.JWT_SECRET!),
+      this.authMiddleware.verifyToken(process.env.JWT_ACCESS_SECRET!),
       this.authMiddleware.verifyRole(["ADMIN"]),
       this.validationMiddleware.validateQuery(GetAnalyticsDTO),
       this.analyticsController.getApplicantInterests,

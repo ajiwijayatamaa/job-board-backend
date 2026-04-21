@@ -17,30 +17,25 @@ export class CompanyRouter {
 
   private initializeRoutes(): void {
     const verifyToken = this.authMiddleware.verifyToken(
-      process.env.JWT_SECRET as string
+      process.env.JWT_ACCESS_SECRET as string,
     );
 
     const verifyAdmin = this.authMiddleware.verifyRole([Role.ADMIN]);
 
-    this.router.post(
-      "/",
-      verifyToken,
-      verifyAdmin,
-      this.controller.create
-    );
+    this.router.post("/", verifyToken, verifyAdmin, this.controller.create);
 
     this.router.get(
       "/me",
       verifyToken,
       verifyAdmin,
-      this.controller.getMyCompany
+      this.controller.getMyCompany,
     );
 
     this.router.patch(
       "/me",
       verifyToken,
       verifyAdmin,
-      this.controller.updateMyCompany
+      this.controller.updateMyCompany,
     );
 
     this.router.get("/:id", this.controller.getById);

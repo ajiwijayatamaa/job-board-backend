@@ -23,7 +23,7 @@ export class ApplicantRouter {
     // GET — list pelamar berdasarkan jobId
     this.router.get(
       "/job/:jobId",
-      this.authMiddleware.verifyToken(process.env.JWT_SECRET!),
+      this.authMiddleware.verifyToken(process.env.JWT_ACCESS_SECRET!),
       this.authMiddleware.verifyRole(["ADMIN"]),
       this.validationMiddleware.validateQuery(GetApplicantsDTO),
       this.applicantController.getApplicants,
@@ -32,7 +32,7 @@ export class ApplicantRouter {
     // GET — detail pelamar by application id
     this.router.get(
       "/:id",
-      this.authMiddleware.verifyToken(process.env.JWT_SECRET!),
+      this.authMiddleware.verifyToken(process.env.JWT_ACCESS_SECRET!),
       this.authMiddleware.verifyRole(["ADMIN"]),
       this.applicantController.getApplicantById,
     );
@@ -40,7 +40,7 @@ export class ApplicantRouter {
     // PATCH — update status pelamar (processed, rejected, etc)
     this.router.patch(
       "/:id/status",
-      this.authMiddleware.verifyToken(process.env.JWT_SECRET!),
+      this.authMiddleware.verifyToken(process.env.JWT_ACCESS_SECRET!),
       this.authMiddleware.verifyRole(["ADMIN"]),
       this.validationMiddleware.validateBody(UpdateApplicantStatusDTO),
       this.applicantController.updateApplicantStatus,
