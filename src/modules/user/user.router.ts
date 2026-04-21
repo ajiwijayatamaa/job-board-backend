@@ -20,24 +20,24 @@ export class UserRouter {
 
   private initRoutes = (): void => {
     this.router.get(
-      "/me",
-      this.authMiddleware.verifyToken(process.env.JWT_SECRET!),
+      "/profile",
+      this.authMiddleware.verifyToken(process.env.JWT_ACCESS_SECRET!),
       this.controller.getProfile
     );
 
     this.router.patch(
-      "/me",
-      this.authMiddleware.verifyToken(process.env.JWT_SECRET!),
+      "/profile",
+      this.authMiddleware.verifyToken(process.env.JWT_ACCESS_SECRET!),
       this.authMiddleware.verifyVerified(),
       this.validationMiddleware.validateBody(UpdateProfileDTO),
       this.controller.updateProfile
     );
 
     this.router.patch(
-      "/me/profile-picture",
-      this.authMiddleware.verifyToken(process.env.JWT_SECRET!),
+      "/profile-picture",
+      this.authMiddleware.verifyToken(process.env.JWT_ACCESS_SECRET!),
       this.authMiddleware.verifyVerified(),
-      this.uploadMiddleware.uploadImage(2).single("file"),
+      this.uploadMiddleware.uploadImage(2).single("profilePhoto"),
       this.controller.updateProfilePicture
     );
   };

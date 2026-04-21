@@ -1,4 +1,6 @@
-import { IsOptional, IsString, IsDateString, IsNumber } from "class-validator";
+import { IsOptional, IsString, IsDateString, IsNumber, IsEnum } from "class-validator";
+import { Transform } from "class-transformer";
+import { Gender } from "../../../generated/prisma/enums.js";
 
 export class UpdateProfileDTO {
   @IsOptional()
@@ -8,6 +10,11 @@ export class UpdateProfileDTO {
   @IsOptional()
   @IsDateString()
   dateOfBirth?: string;
+
+  @IsOptional()
+  @Transform(({ value }) => (typeof value === "string" ? value.toUpperCase() : value))
+  @IsEnum(Gender)
+  gender?: string;
 
   @IsOptional()
   @IsString()

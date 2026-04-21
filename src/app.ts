@@ -134,7 +134,7 @@ export class App {
 
     // entry point — USER (Feature 1)
     this.app.use("/auth", authRouter.getRouter());
-    this.app.use("/users", userRouter.getRouter());
+    this.app.use("/profile", userRouter.getRouter());
     this.app.use("/companies", companyRouter.getRouter());
     this.app.use("/cvs", cvRouter.getRouter());
 

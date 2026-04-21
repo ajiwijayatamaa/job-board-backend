@@ -3,7 +3,7 @@ import { IsEmail, IsNotEmpty, IsOptional, IsString, MinLength } from "class-vali
 export class RegisterDTO {
   @IsNotEmpty()
   @IsString()
-  name!: string;
+  fullName!: string;
 
   @IsNotEmpty()
   @IsEmail()

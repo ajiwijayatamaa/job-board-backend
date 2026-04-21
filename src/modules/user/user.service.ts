@@ -1,4 +1,4 @@
-import { Role } from "../../generated/prisma/enums.js";
+import { Role, Gender } from "../../generated/prisma/enums.js";
 import { PrismaClient } from "../../generated/prisma/client.js";
 import { ApiError } from "../../utils/api-error.js";
 import { UpdateProfileDTO } from "../user/dto/user.dto.js";
@@ -58,6 +58,7 @@ export class UserService {
         data: {
           fullName: body.fullName ?? undefined,
           dateOfBirth: body.dateOfBirth ? new Date(body.dateOfBirth) : undefined,
+          gender: body.gender ? (body.gender.toUpperCase() as Gender) : undefined,
           education: body.education ?? undefined,
           city: body.city ?? undefined,
           address: body.address ?? undefined,
