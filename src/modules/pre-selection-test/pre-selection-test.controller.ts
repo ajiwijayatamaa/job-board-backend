@@ -47,6 +47,30 @@ export class PreSelectionTestController {
     res.status(200).send(result);
   };
 
+  // ADMIN — lihat hasil tes semua pelamar
+  getTestResults = async (req: Request, res: Response) => {
+    const testId = Number(req.params.testId);
+    const adminId = res.locals.existingUser.id;
+    const query = plainToInstance(GetTestResultsDTO, req.query); // tambah ini
+    const result = await this.preSelectionTestService.getTestResults(
+      testId,
+      adminId,
+      query, // tambah ini
+    );
+    res.status(200).send(result);
+  };
+
+  // ADMIN — lihat detail jawaban satu user
+  getAnswersByResult = async (req: Request, res: Response) => {
+    const testResultId = Number(req.params.testResultId);
+    const adminId = res.locals.existingUser.id;
+    const result = await this.preSelectionTestService.getAnswersByResult(
+      testResultId,
+      adminId,
+    );
+    res.status(200).send(result);
+  };
+
   // USER — ambil soal tanpa jawaban
   takeTest = async (req: Request, res: Response) => {
     const jobId = Number(req.params.jobId);
@@ -61,18 +85,5 @@ export class PreSelectionTestController {
     const userId = res.locals.existingUser.id;
     const result = await this.preSelectionTestService.submitTest(body, userId);
     res.status(201).send(result);
-  };
-
-  // ADMIN — lihat hasil tes semua pelamar
-  getTestResults = async (req: Request, res: Response) => {
-    const testId = Number(req.params.testId);
-    const adminId = res.locals.existingUser.id;
-    const query = plainToInstance(GetTestResultsDTO, req.query); // tambah ini
-    const result = await this.preSelectionTestService.getTestResults(
-      testId,
-      adminId,
-      query, // tambah ini
-    );
-    res.status(200).send(result);
   };
 }

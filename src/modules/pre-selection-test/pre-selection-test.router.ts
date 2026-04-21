@@ -23,7 +23,7 @@ export class PreSelectionTestRouter {
   private initRoutes = () => {
     this.router.post(
       "/",
-      this.authMiddleware.verifyToken(process.env.JWT_SECRET!),
+      this.authMiddleware.verifyToken(process.env.JWT_ACCESS_SECRET!),
       this.authMiddleware.verifyVerified(),
       this.authMiddleware.verifyRole(["ADMIN"]),
       this.validationMiddleware.validateBody(CreatePreSelectionTestDTO),
@@ -32,7 +32,7 @@ export class PreSelectionTestRouter {
 
     this.router.get(
       "/job/:jobId",
-      this.authMiddleware.verifyToken(process.env.JWT_SECRET!),
+      this.authMiddleware.verifyToken(process.env.JWT_ACCESS_SECRET!),
       this.authMiddleware.verifyVerified(),
       this.authMiddleware.verifyRole(["ADMIN"]),
       this.preSelectionTestController.getTestByJobId,
@@ -40,7 +40,7 @@ export class PreSelectionTestRouter {
 
     this.router.patch(
       "/:id",
-      this.authMiddleware.verifyToken(process.env.JWT_SECRET!),
+      this.authMiddleware.verifyToken(process.env.JWT_ACCESS_SECRET!),
       this.authMiddleware.verifyVerified(),
       this.authMiddleware.verifyRole(["ADMIN"]),
       this.validationMiddleware.validateBody(UpdatePreSelectionTestDTO),
@@ -49,7 +49,7 @@ export class PreSelectionTestRouter {
 
     this.router.delete(
       "/:id",
-      this.authMiddleware.verifyToken(process.env.JWT_SECRET!),
+      this.authMiddleware.verifyToken(process.env.JWT_ACCESS_SECRET!),
       this.authMiddleware.verifyVerified(),
       this.authMiddleware.verifyRole(["ADMIN"]),
       this.preSelectionTestController.deleteTest,
@@ -57,16 +57,24 @@ export class PreSelectionTestRouter {
 
     this.router.get(
       "/:testId/results",
-      this.authMiddleware.verifyToken(process.env.JWT_SECRET!),
+      this.authMiddleware.verifyToken(process.env.JWT_ACCESS_SECRET!),
       this.authMiddleware.verifyVerified(),
       this.authMiddleware.verifyRole(["ADMIN"]),
       this.preSelectionTestController.getTestResults,
     );
 
+    this.router.get(
+      "/results/:testResultId/answers",
+      this.authMiddleware.verifyToken(process.env.JWT_ACCESS_SECRET!),
+      this.authMiddleware.verifyVerified(),
+      this.authMiddleware.verifyRole(["ADMIN"]),
+      this.preSelectionTestController.getAnswersByResult,
+    );
+
     // ── USER ───────────────────────────────────────────────
     this.router.get(
       "/take/:jobId",
-      this.authMiddleware.verifyToken(process.env.JWT_SECRET!),
+      this.authMiddleware.verifyToken(process.env.JWT_ACCESS_SECRET!),
       this.authMiddleware.verifyVerified(),
       this.authMiddleware.verifyRole(["USER"]),
       this.preSelectionTestController.takeTest,
@@ -74,7 +82,7 @@ export class PreSelectionTestRouter {
 
     this.router.post(
       "/submit",
-      this.authMiddleware.verifyToken(process.env.JWT_SECRET!),
+      this.authMiddleware.verifyToken(process.env.JWT_ACCESS_SECRET!),
       this.authMiddleware.verifyVerified(),
       this.authMiddleware.verifyRole(["USER"]),
       this.validationMiddleware.validateBody(SubmitTestDTO),

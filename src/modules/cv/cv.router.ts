@@ -10,7 +10,7 @@ export class CVRouter {
   private upload = new UploadMiddleware();
 
   constructor() {
-    this.router = Router ();
+    this.router = Router();
     this.controller = new CVController();
     this.authMiddleware = new AuthMiddleware();
     this.initializeRoutes();
@@ -18,33 +18,21 @@ export class CVRouter {
 
   private initializeRoutes(): void {
     const verifyToken = this.authMiddleware.verifyToken(
-        process.env.JWT_SECRET as string
+      process.env.JWT_ACCESS_SECRET as string,
     );
 
     this.router.post(
       "/",
       verifyToken,
       this.upload.uploadPDF(2).single("cv"),
-      this.controller.create
+      this.controller.create,
     );
 
-    this.router.get(
-      "/",
-      verifyToken,
-      this.controller.getAll
-    );
+    this.router.get("/", verifyToken, this.controller.getAll);
 
-    this.router.patch(
-      "/:id/primary",
-      verifyToken,
-      this.controller.setPrimary
-    );
+    this.router.patch("/:id/primary", verifyToken, this.controller.setPrimary);
 
-    this.router.delete(
-      "/:id",
-      verifyToken,
-      this.controller.delete
-    );
+    this.router.delete("/:id", verifyToken, this.controller.delete);
   }
 
   getRouter() {

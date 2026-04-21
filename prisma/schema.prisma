@@ -29,13 +29,13 @@ model User {
   createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt    DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  company      Company?
-  cvs          CV[]
-  applications Application[]
-  refreshToken RefreshToken?
+  company            Company?
+  cvs                CV[]
+  applications       Application[]
+  refreshToken       RefreshToken?
   passwordResetToken PasswordResetToken?
-  verificationToken VerificationToken?
-  testResults  TestResult[]
+  verificationToken  VerificationToken?
+  testResults        TestResult[]
 
   @@map("users")
 }
@@ -134,7 +134,8 @@ model TestQuestion {
   questionText  String           @map("question_text") @db.Text
   correctAnswer String           @map("correct_answer") @db.VarChar(255)
 
-  options TestOption[]
+  options     TestOption[]
+  userAnswers TestAnswer[]
 
   @@map("test_questions")
 }
@@ -209,9 +210,21 @@ model TestResult {
   createdAt          DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
 
   application Application? // one-to-one 
+  answers     TestAnswer[]
 
   @@unique([userId, preSelectionTestId])
   @@map("test_results")
+}
+
+model TestAnswer {
+  id             Int          @id @default(autoincrement())
+  testResultId   Int          @map("test_result_id")
+  testResult     TestResult   @relation(fields: [testResultId], references: [id], onDelete: Cascade)
+  questionId     Int          @map("question_id")
+  question       TestQuestion @relation(fields: [questionId], references: [id])
+  selectedAnswer String       @map("selected_answer") @db.VarChar(255)
+
+  @@map("test_answers")
 }
 
 enum Role {

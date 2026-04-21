@@ -20,7 +20,7 @@ export class InterviewRouter {
     // POST / — buat jadwal interview baru untuk satu pelamar
     this.router.post(
       "/",
-      this.authMiddleware.verifyToken(process.env.JWT_SECRET!),
+      this.authMiddleware.verifyToken(process.env.JWT_ACCESS_SECRET!),
       this.authMiddleware.verifyRole(["ADMIN"]),
       this.validationMiddleware.validateBody(CreateInterviewDTO),
       this.interviewController.createInterview,
@@ -29,7 +29,7 @@ export class InterviewRouter {
     // GET /job/:jobId — list semua jadwal interview berdasarkan job
     this.router.get(
       "/job/:jobId",
-      this.authMiddleware.verifyToken(process.env.JWT_SECRET!),
+      this.authMiddleware.verifyToken(process.env.JWT_ACCESS_SECRET!),
       this.authMiddleware.verifyRole(["ADMIN"]),
       this.interviewController.getInterviewsByJob,
     );
@@ -37,7 +37,7 @@ export class InterviewRouter {
     // GET /:id — detail satu jadwal interview
     this.router.get(
       "/:id",
-      this.authMiddleware.verifyToken(process.env.JWT_SECRET!),
+      this.authMiddleware.verifyToken(process.env.JWT_ACCESS_SECRET!),
       this.authMiddleware.verifyRole(["ADMIN"]),
       this.interviewController.getInterviewById,
     );
@@ -45,7 +45,7 @@ export class InterviewRouter {
     // PATCH /:id — perbarui jadwal interview
     this.router.patch(
       "/:id",
-      this.authMiddleware.verifyToken(process.env.JWT_SECRET!),
+      this.authMiddleware.verifyToken(process.env.JWT_ACCESS_SECRET!),
       this.authMiddleware.verifyRole(["ADMIN"]),
       this.validationMiddleware.validateBody(UpdateInterviewDTO),
       this.interviewController.updateInterview,
@@ -54,7 +54,7 @@ export class InterviewRouter {
     // DELETE /:id — hapus jadwal interview
     this.router.delete(
       "/:id",
-      this.authMiddleware.verifyToken(process.env.JWT_SECRET!),
+      this.authMiddleware.verifyToken(process.env.JWT_ACCESS_SECRET!),
       this.authMiddleware.verifyRole(["ADMIN"]),
       this.interviewController.deleteInterview,
     );

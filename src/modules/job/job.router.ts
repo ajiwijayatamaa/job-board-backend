@@ -26,7 +26,7 @@ export class JobRouter {
     // GET — list semua job milik company
     this.router.get(
       "/",
-      this.authMiddleware.verifyToken(process.env.JWT_SECRET!),
+      this.authMiddleware.verifyToken(process.env.JWT_ACCESS_SECRET!),
       this.authMiddleware.verifyRole(["ADMIN"]),
       this.jobController.getJobs,
     );
@@ -34,7 +34,7 @@ export class JobRouter {
     // GET — detail job by id
     this.router.get(
       "/:id",
-      this.authMiddleware.verifyToken(process.env.JWT_SECRET!),
+      this.authMiddleware.verifyToken(process.env.JWT_ACCESS_SECRET!),
       this.authMiddleware.verifyRole(["ADMIN"]),
       this.jobController.getJobById,
     );
@@ -42,7 +42,7 @@ export class JobRouter {
     // POST — buat job baru
     this.router.post(
       "/",
-      this.authMiddleware.verifyToken(process.env.JWT_SECRET!),
+      this.authMiddleware.verifyToken(process.env.JWT_ACCESS_SECRET!),
       this.authMiddleware.verifyRole(["ADMIN"]),
       this.uploadMiddleware
         .uploadImage()
@@ -54,7 +54,7 @@ export class JobRouter {
     // PATCH — update job
     this.router.patch(
       "/:id",
-      this.authMiddleware.verifyToken(process.env.JWT_SECRET!),
+      this.authMiddleware.verifyToken(process.env.JWT_ACCESS_SECRET!),
       this.authMiddleware.verifyRole(["ADMIN"]),
       this.uploadMiddleware
         .uploadImage()
@@ -66,7 +66,7 @@ export class JobRouter {
     // PATCH — publish/unpublish job
     this.router.patch(
       "/:id/status",
-      this.authMiddleware.verifyToken(process.env.JWT_SECRET!),
+      this.authMiddleware.verifyToken(process.env.JWT_ACCESS_SECRET!),
       this.authMiddleware.verifyRole(["ADMIN"]),
       this.validationMiddleware.validateBody(UpdateJobStatusDTO),
       this.jobController.updateJobStatus,
@@ -75,7 +75,7 @@ export class JobRouter {
     // DELETE — hapus job
     this.router.delete(
       "/:id",
-      this.authMiddleware.verifyToken(process.env.JWT_SECRET!),
+      this.authMiddleware.verifyToken(process.env.JWT_ACCESS_SECRET!),
       this.authMiddleware.verifyRole(["ADMIN"]),
       this.jobController.deleteJob,
     );
