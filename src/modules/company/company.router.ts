@@ -1,17 +1,20 @@
 import { Router } from "express";
 import { Role } from "../../generated/prisma/enums.js";
 import { AuthMiddleware } from "../../middlewares/auth.middleware.js";
+import { UploadMiddleware } from "../../middlewares/upload.middleware.js";
+import { ValidationMiddleware } from "../../middlewares/validation.middleware.js";
 import { CompanyController } from "./company.controller.js";
 
 export class CompanyRouter {
   private router: Router;
-  private controller: CompanyController;
-  private authMiddleware: AuthMiddleware;
 
-  constructor() {
+  constructor(
+    private controller: CompanyController,
+    private authMiddleware: AuthMiddleware,
+    private uploadMiddleware: UploadMiddleware,
+    private validationMiddleware: ValidationMiddleware,
+  ) {
     this.router = Router();
-    this.controller = new CompanyController();
-    this.authMiddleware = new AuthMiddleware();
     this.initializeRoutes();
   }
 

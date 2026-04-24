@@ -3,11 +3,7 @@ import { CompanyService } from "./company.service.js";
 import { ApiError } from "../../utils/api-error.js";
 
 export class CompanyController {
-  private service: CompanyService;
-
-  constructor() {
-    this.service = new CompanyService();
-  }
+  constructor(private service: CompanyService) {}
 
   create = async (req: Request, res: Response, next: NextFunction) => {
     try {
@@ -50,12 +46,8 @@ export class CompanyController {
 
   getById = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const rawId = Array.isArray(req.params.id)
-        ? req.params.id[0]
-        : req.params.id;
-      const companyId = parseInt(rawId);
-
-      if (Number.isNaN(companyId)) {
+      const companyId = Number(req.params.id);
+      if (isNaN(companyId)) {
         return next(new ApiError("Invalid company id", 400));
       }
 

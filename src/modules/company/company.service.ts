@@ -1,9 +1,15 @@
+import { PrismaClient } from "../../generated/prisma/client.js";
 import { Role } from "../../generated/prisma/enums.js";
-import { prisma } from "../../lib/prisma.js";
 import { ApiError } from "../../utils/api-error.js";
+import { CloudinaryService } from "../cloudinary/cloudinary.service.js";
 
 export class CompanyService {
-  async create(
+  constructor(
+    private prisma: PrismaClient,
+    private cloudinaryService: CloudinaryService,
+  ) {}
+
+  create = async (
     adminId: number,
     body: {
       companyName: string;
@@ -13,8 +19,8 @@ export class CompanyService {
       latitude?: number | string;
       longitude?: number | string;
     }
-  ) {
-    const admin = await prisma.user.findUnique({
+  ) => {
+    const admin = await this.prisma.user.findUnique({
       where: { id: adminId },
       select: { id: true, role: true },
     });
@@ -27,7 +33,7 @@ export class CompanyService {
       throw new ApiError("Only ADMIN can create company", 403);
     }
 
-    const existingCompany = await prisma.company.findUnique({
+    const existingCompany = await this.prisma.company.findUnique({
       where: { adminId },
       select: { id: true },
     });
@@ -36,7 +42,7 @@ export class CompanyService {
       throw new ApiError("Company already exists for this admin", 400);
     }
 
-    const company = await prisma.company.create({
+    const company = await this.prisma.company.create({
       data: {
         adminId,
         companyName: body.companyName,
@@ -52,10 +58,10 @@ export class CompanyService {
       message: "Create company success",
       data: company,
     };
-  }
+  };
 
-  async getByAdminId(adminId: number) {
-    const company = await prisma.company.findUnique({
+  getByAdminId = async (adminId: number) => {
+    const company = await this.prisma.company.findUnique({
       where: { adminId },
       include: {
         admin: { select: { id: true, email: true, fullName: true, role: true } },
@@ -70,10 +76,10 @@ export class CompanyService {
       message: "Get company success",
       data: company,
     };
-  }
+  };
 
-  async getById(companyId: number) {
-    const company = await prisma.company.findUnique({
+  getById = async (companyId: number) => {
+    const company = await this.prisma.company.findUnique({
       where: { id: companyId },
       include: {
         admin: { select: { id: true, email: true, fullName: true, role: true } },
@@ -88,9 +94,9 @@ export class CompanyService {
       message: "Get company success",
       data: company,
     };
-  }
+  };
 
-  async updateByAdminId(
+  updateByAdminId = async (
     adminId: number,
     body: {
       companyName?: string;
@@ -100,8 +106,8 @@ export class CompanyService {
       latitude?: number | string | null;
       longitude?: number | string | null;
     }
-  ) {
-    const existingCompany = await prisma.company.findUnique({
+  ) => {
+    const existingCompany = await this.prisma.company.findUnique({
       where: { adminId },
       select: { id: true },
     });
@@ -110,7 +116,7 @@ export class CompanyService {
       throw new ApiError("Company not found", 404);
     }
 
-    const company = await prisma.company.update({
+    const company = await this.prisma.company.update({
       where: { adminId },
       data: {
         companyName: body.companyName,
@@ -126,5 +132,5 @@ export class CompanyService {
       message: "Update company success",
       data: company,
     };
-  }
+  };
 }

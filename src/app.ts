@@ -22,8 +22,12 @@ import { AuthController } from "./modules/auth/auth.controller.js";
 import { AuthRouter } from "./modules/auth/auth.router.js";
 import { AuthService } from "./modules/auth/auth.service.js";
 import { CloudinaryService } from "./modules/cloudinary/cloudinary.service.js";
-import { CompanyRouter } from "./modules/company/company.routes.js";
+import { CompanyController } from "./modules/company/company.controller.js";
+import { CompanyRouter } from "./modules/company/company.router.js";
+import { CompanyService } from "./modules/company/company.service.js";
+import { CVController } from "./modules/cv/cv.controller.js";
 import { CVRouter } from "./modules/cv/cv.router.js";
+import { CVService } from "./modules/cv/cv.service.js";
 import { InterviewController } from "./modules/interview/interview.controller.js";
 import { InterviewRouter } from "./modules/interview/interview.router.js";
 import { InterviewService } from "./modules/interview/interview.service.js";
@@ -73,6 +77,8 @@ export class App {
     const analyticsService = new AnalyticsService(prismaClient);
     const authService = new AuthService(prismaClient, mailService);
     const userService = new UserService(prismaClient);
+    const companyService = new CompanyService(prismaClient, cloudinaryService);
+    const cvService = new CVService(prismaClient, cloudinaryService);
 
     // controllers
     const preSelectionTestController = new PreSelectionTestController(
@@ -84,6 +90,8 @@ export class App {
     const analyticsController = new AnalyticsController(analyticsService);
     const authController = new AuthController(authService);
     const userController = new UserController(userService);
+    const companyController = new CompanyController(companyService);
+    const cvController = new CVController(cvService);
 
     //middlewares
     const authMiddleware = new AuthMiddleware();
@@ -128,15 +136,27 @@ export class App {
       uploadMiddleware,
       validationMiddleware,
     );
-    const companyRouter = new CompanyRouter();
+    const companyRouter = new CompanyRouter(
+      companyController,
+      authMiddleware,
+      uploadMiddleware,
+      validationMiddleware,
+    );
 
-    const cvRouter = new CVRouter();
+    const cvRouter = new CVRouter(
+      cvController,
+      authMiddleware,
+      uploadMiddleware,
+      validationMiddleware,
+    );
 
     // entry point — USER (Feature 1)
     this.app.use("/auth", authRouter.getRouter());
-    this.app.use("/profile", userRouter.getRouter());
+    this.app.use("/user", userRouter.getRouter());
     this.app.use("/companies", companyRouter.getRouter());
     this.app.use("/cvs", cvRouter.getRouter());
+    this.app.use("/applications", applicationsRouter.getRouter());
+    this.app.use("/jobs", jobRouter.getRouter());
 
     // entry point — SHARED (berdua)
     this.app.use("/pre-selection-tests", preSelectionTestRouter.getRouter());

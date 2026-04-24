@@ -1,10 +1,29 @@
 import { plainToInstance } from "class-transformer";
 import { Request, Response } from "express";
 import { JobService } from "./job.service.js";
-import { GetJobsDTO, UpdateJobDTO, UpdateJobStatusDTO } from "./dto/job.dto.js";
+import {
+  GetJobsDTO,
+  GetPublicJobsDTO,
+  UpdateJobDTO,
+  UpdateJobStatusDTO,
+} from "./dto/job.dto.js";
 
 export class JobController {
   constructor(private jobService: JobService) {}
+
+  // ========================= USER - FEATUR 1 (START) =========================
+  getPublicJobs = async (req: Request, res: Response) => {
+    const query = plainToInstance(GetPublicJobsDTO, req.query);
+    const result = await this.jobService.getPublicJobs(query);
+    res.status(200).send(result);
+  };
+
+  getPublicJobById = async (req: Request, res: Response) => {
+    const id = Number(req.params.id);
+    const result = await this.jobService.getPublicJobById(id);
+    res.status(200).send(result);
+  };
+  // ========================= USER - FEATUR 1 (END) =========================
 
   getJobs = async (req: Request, res: Response) => {
     const query = plainToInstance(GetJobsDTO, req.query);

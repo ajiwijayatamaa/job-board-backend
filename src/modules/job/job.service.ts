@@ -4,6 +4,7 @@ import { CloudinaryService } from "../cloudinary/cloudinary.service.js";
 import {
   CreateJobDTO,
   GetJobsDTO,
+  GetPublicJobsDTO,
   UpdateJobDTO,
   UpdateJobStatusDTO,
 } from "./dto/job.dto.js";
@@ -189,6 +190,102 @@ export class JobService {
   // ========================= ADMIN - FEATUR 2 (END) =========================
 
   // ========================= USER - FEATUR 1 (START) =========================
+
+  getPublicJobs = async (query: GetPublicJobsDTO) => {
+    const {
+      page,
+      take,
+      sortBy,
+      sortOrder,
+      search,
+      category,
+      city,
+      tag,
+      startDate,
+      endDate,
+    } = query;
+
+    const whereClause: Prisma.JobWhereInput = {
+      status: "PUBLISHED",
+      deadline: { gte: new Date() },
+    };
+
+    if (search) {
+      whereClause.title = { contains: search, mode: "insensitive" };
+    }
+    if (category) {
+      whereClause.category = { contains: category, mode: "insensitive" };
+    }
+    if (city) {
+      whereClause.city = { contains: city, mode: "insensitive" };
+    }
+    if (tag) {
+      whereClause.tags = { has: tag };
+    }
+
+    if (startDate || endDate) {
+      whereClause.createdAt = {
+        ...(startDate && { gte: startDate }),
+        ...(endDate && { lte: endDate }),
+      };
+    }
+
+    const allowedSortBy = new Set(["createdAt", "deadline"]);
+    const effectiveSortBy = allowedSortBy.has(sortBy) ? sortBy : "createdAt";
+    const effectiveSortOrder = sortOrder === "asc" ? "asc" : "desc";
+
+    const jobs = await this.prisma.job.findMany({
+      where: whereClause,
+      take,
+      skip: (page - 1) * take,
+      orderBy: { [effectiveSortBy]: effectiveSortOrder },
+      include: {
+        company: {
+          select: {
+            id: true,
+            companyName: true,
+            phone: true,
+            address: true,
+            latitude: true,
+            longitude: true,
+            description: true,
+          },
+        },
+        _count: { select: { applications: true } },
+      },
+    });
+
+    const total = await this.prisma.job.count({ where: whereClause });
+
+    return {
+      data: jobs,
+      meta: { page, take, total },
+    };
+  };
+
+  getPublicJobById = async (id: number) => {
+    const job = await this.prisma.job.findFirst({
+      where: { id, status: "PUBLISHED", deadline: { gte: new Date() } },
+      include: {
+        company: {
+          select: {
+            id: true,
+            companyName: true,
+            phone: true,
+            address: true,
+            latitude: true,
+            longitude: true,
+            description: true,
+          },
+        },
+        _count: { select: { applications: true } },
+      },
+    });
+
+    if (!job) throw new ApiError("Lowongan tidak ditemukan atau sudah ditutup", 404);
+
+    return job;
+  };
 
   // ========================= USER - FEATUR 1 (END) =========================
 }

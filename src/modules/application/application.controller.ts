@@ -2,7 +2,9 @@ import { plainToInstance } from "class-transformer";
 import { Request, Response } from "express";
 import { ApplicantService } from "./application.service.js";
 import {
+  CreateApplicationDTO,
   GetApplicantsDTO,
+  GetMyApplicationsDTO,
   UpdateApplicantStatusDTO,
 } from "./dto/applicant.dto.js";
 
@@ -45,6 +47,38 @@ export class ApplicantController {
   // ========================= ADMIN - FEATUR 2 (END) =========================
 
   // ========================= USER - FEATUR 1 (START) =========================
+  applyToJob = async (req: Request, res: Response) => {
+    const jobId = Number(req.params.jobId);
+    const body = plainToInstance(CreateApplicationDTO, req.body);
+    const userId = res.locals.existingUser.id;
+
+    const result = await this.applicantService.applyToJob(jobId, userId, body);
+    res.status(201).send(result);
+  };
+
+  getMyApplications = async (req: Request, res: Response) => {
+    const query = plainToInstance(GetMyApplicationsDTO, req.query);
+    const userId = res.locals.existingUser.id;
+
+    const result = await this.applicantService.getMyApplications(userId, query);
+    res.status(200).send(result);
+  };
+
+  getMyApplicationById = async (req: Request, res: Response) => {
+    const id = Number(req.params.id);
+    const userId = res.locals.existingUser.id;
+
+    const result = await this.applicantService.getMyApplicationById(id, userId);
+    res.status(200).send(result);
+  };
+
+  withdrawMyApplication = async (req: Request, res: Response) => {
+    const id = Number(req.params.id);
+    const userId = res.locals.existingUser.id;
+
+    const result = await this.applicantService.withdrawMyApplication(id, userId);
+    res.status(200).send(result);
+  };
 
   // ========================= USER - FEATUR 1 (END) =========================
 }
