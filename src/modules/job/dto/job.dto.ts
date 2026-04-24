@@ -119,3 +119,31 @@ export class GetJobsDTO extends PaginationQueryParams {
   @IsString({ message: "City harus berupa string" })
   city?: string;
 }
+
+export class GetPublicJobsDTO extends PaginationQueryParams {
+  @IsOptional()
+  @IsString({ message: "Search harus berupa string" })
+  search?: string;
+
+  @IsOptional()
+  @IsString({ message: "Category harus berupa string" })
+  category?: string;
+
+  @IsOptional()
+  @IsString({ message: "City harus berupa string" })
+  city?: string;
+
+  @IsOptional()
+  @IsString({ message: "Tag harus berupa string" })
+  tag?: string;
+
+  @IsOptional()
+  @Transform(({ value }) => (value ? new Date(value) : undefined))
+  @IsDate({ message: "startDate harus berupa tanggal yang valid" })
+  startDate?: Date;
+
+  @IsOptional()
+  @Transform(({ value }) => (value ? new Date(value) : undefined))
+  @IsDate({ message: "endDate harus berupa tanggal yang valid" })
+  endDate?: Date;
+}

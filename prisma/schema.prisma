@@ -15,9 +15,10 @@ datasource db {
 model User {
   id           Int       @id @default(autoincrement())
   email        String    @unique @db.VarChar(255)
-  password     String    @db.VarChar(255)
+  password     String?    @db.VarChar(255)
   role         Role      @default(USER)
   provider     Provider  @default(CREDENTIALS)
+  providerId   String?
   isVerified   Boolean   @default(false) @map("is_verified")
   fullName     String?   @map("full_name") @db.VarChar(255)
   dateOfBirth  DateTime? @map("date_of_birth") @db.Date
@@ -46,6 +47,7 @@ model RefreshToken {
   userId    Int      @unique @map("user_id")
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   expiredAt DateTime @map("expired_at") @db.Timestamptz(6)
+  revokedAt Boolean  @default(false) @map("revoked_at")
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 

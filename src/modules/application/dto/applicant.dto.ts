@@ -9,6 +9,36 @@ import {
 } from "class-validator";
 import { PaginationQueryParams } from "../../pagination/dto/pagination.dto.js";
 
+export class CreateApplicationDTO {
+  @IsOptional()
+  @Transform(({ value }) =>
+    value !== undefined && value !== "" ? parseInt(value) : undefined,
+  )
+  @IsNumber({}, { message: "cvId harus berupa angka" })
+  cvId?: number;
+
+  @IsOptional()
+  @Transform(({ value }) =>
+    value !== undefined && value !== "" ? parseFloat(value) : undefined,
+  )
+  @IsNumber({}, { message: "Expected salary harus berupa angka" })
+  @Min(0, { message: "Expected salary tidak boleh negatif" })
+  expectedSalary?: number;
+}
+
+export class GetMyApplicationsDTO extends PaginationQueryParams {
+  @IsOptional()
+  @IsString({ message: "Search harus berupa string" })
+  search?: string;
+
+  @IsOptional()
+  @IsString({ message: "Status harus berupa string" })
+  @IsIn(["PENDING", "PROCESSED", "INTERVIEW", "ACCEPTED", "REJECTED"], {
+    message: "Status harus PENDING, PROCESSED, INTERVIEW, ACCEPTED, atau REJECTED",
+  })
+  status?: "PENDING" | "PROCESSED" | "INTERVIEW" | "ACCEPTED" | "REJECTED";
+}
+
 export class GetApplicantsDTO extends PaginationQueryParams {
   @IsOptional()
   @IsString({ message: "Search harus berupa string" })

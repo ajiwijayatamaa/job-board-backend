@@ -1,231 +1,73 @@
 import crypto from "crypto";
 import jwt from "jsonwebtoken";
+import { OAuth2Client } from "google-auth-library";
 import { Provider, Role } from "../../generated/prisma/enums.js";
-import { hashPassword, comparePassword } from "../../lib/argon.js";
 import { PrismaClient, User } from "../../generated/prisma/client.js";
+import { hashPassword, comparePassword } from "../../lib/argon.js";
 import { ApiError } from "../../utils/api-error.js";
 import { MailService } from "../mail/mail.service.js";
-import { LoginDTO, RegisterDTO, ResetPasswordDTO } from "./dto/auth.dto.js";
+import {
+  LoginDTO,
+  RegisterDTO,
+  ResetPasswordDTO,
+} from "./dto/auth.dto.js";
 
 export class AuthService {
+  private googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
+
   constructor(
     private prisma: PrismaClient,
-    private mailService: MailService,
+    private mailService: MailService
   ) {}
 
-  register = async (body: RegisterDTO) => {
-    const existingUser = await this.prisma.user.findUnique({ where: { email: body.email } });
-    if (existingUser) throw new ApiError("Email already exists", 400);
-
-    const registerRole = this.normalizeRole(body.role);
-    if (registerRole === Role.ADMIN && !body.companyName) {
-      throw new ApiError("Company name is required for admin registration", 400);
-    }
-
-    const hashedPassword = await hashPassword(body.password);
-    const { user, verificationToken } = await this.prisma.$transaction(async (tx) => {
-      const vToken = this.generateRandomToken();
-      const newUser = await tx.user.create({
-        data: {
-          fullName: body.fullName,
-          email: body.email,
-          password: hashedPassword,
-          role: registerRole,
-          provider: Provider.CREDENTIALS,
-          company: registerRole === Role.ADMIN ? {
-            create: { companyName: body.companyName!, phone: body.phone },
-          } : undefined,
-        },
-        include: { company: true },
-      });
-
-      await tx.verificationToken.create({
-        data: { userId: newUser.id, token: vToken, expiresAt: this.getExpiryDate() },
-      });
-
-      return { user: newUser, verificationToken: vToken };
-    });
-
-    await this.mailService.sendEmail(
-      user.email,
-      "Verify Your Email",
-      "verfication",
-      {
-        email: user.email,
-        verifyUrl: `${process.env.FRONTEND_URL}/verify-email?token=${verificationToken}`,
-      },
+  private generateAccessToken(user: {
+    id: number;
+    email: string;
+    role: Role;
+  }) {
+    return jwt.sign(
+      { id: user.id, email: user.email, role: user.role },
+      process.env.JWT_ACCESS_SECRET as string,
+      { expiresIn: "20m" }
     );
-    return {
-      message: "Register success. Please check your email to verify your account.",
-      data: this.mapUserResponse(user, this.generateAccessToken(user)),
-    };
-  };
-
-  verifyEmail = async (token: string) => {
-    const verificationToken = await this.prisma.verificationToken.findUnique({
-      where: { token },
-      include: { user: true },
-    });
-
-    if (!verificationToken) throw new ApiError("Invalid verification token", 400);
-    if (verificationToken.expiresAt < new Date()) 
-      throw new ApiError("Verification token expired. Please login to resend email.", 400);
-
-    await this.prisma.$transaction([
-      this.prisma.user.update({
-        where: { id: verificationToken.userId },
-        data: { isVerified: true },
-      }),
-      this.prisma.verificationToken.delete({
-        where: { id: verificationToken.id },
-      }),
-    ]);
-
-    return { message: "Email verified successfully. Please login again to refresh your session." };
-  };
-
-  resendVerification = async (userId: number) => {
-    const user = await this.prisma.user.findUnique({ where: { id: userId } });
-
-    if (!user) throw new ApiError("User not found", 404);
-    if (user.isVerified) throw new ApiError("Account already verified", 400);
-
-    const token = this.generateRandomToken();
-    const expiresAt = this.getExpiryDate();
-
-    await this.prisma.verificationToken.upsert({
-      where: { userId: user.id },
-      update: { token, expiresAt },
-      create: { userId: user.id, token, expiresAt },
-    });
-
-    await this.mailService.sendEmail(
-      user.email,
-      "Verify Your Email",
-      "verfication",
-      {
-        email: user.email,
-        verifyUrl: `${process.env.FRONTEND_URL}/verify-email?token=${token}`,
-      },
-    );
-
-    return { message: "Verification email resent." };
-  };
-
-  login = async (body: LoginDTO) => {
-    const user = await this.prisma.user.findUnique({ where: { email: body.email } });
-    if (!user || !(await comparePassword(body.password, user.password))) {
-      throw new ApiError("Invalid email or password", 400);
-    }
-
-    if (!user.isVerified) {
-      throw new ApiError("Please verify your email before logging in", 401);
-    }
-
-    return {
-      message: "Login success", // Di sini Anda bisa menambahkan generateRefreshToken untuk diletakkan di cookie
-      data: this.mapUserResponse(user, this.generateAccessToken(user)),
-    };
-  };
-
-  refresh = async (refreshToken: string) => {
-    try {
-      const payload = jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET!) as any;
-
-      const user = await this.prisma.user.findUnique({
-        where: { id: payload.id },
-        include: { company: true },
-      });
-
-      if (!user) throw new ApiError("User not found", 404);
-
-      // Saat refresh, kita menerbitkan Access Token baru menggunakan rahasia Access
-      const accessToken = this.generateAccessToken(user);
-      // Opsional: Implementasikan Refresh Token Rotation di sini jika diperlukan
-
-      return {
-        message: "Token refresh success",
-        data: this.mapUserResponse(user, accessToken),
-      };
-    } catch (err) {
-      throw new ApiError("Invalid or expired refresh token", 401);
-    }
-  };
-
-  forgotPassword = async (email: string) => {
-    const user = await this.prisma.user.findUnique({ where: { email } });
-
-    if (user && user.provider === Provider.CREDENTIALS) {
-      const token = this.generateRandomToken();
-      const expiresAt = this.getExpiryDate();
-
-      await this.prisma.passwordResetToken.upsert({
-        where: { userId: user.id },
-        update: { token, expiresAt },
-        create: { userId: user.id, token, expiresAt },
-      });
-
-      await this.mailService.sendEmail(
-        user.email,
-        "Reset Your Password",
-        "reset-password",
-        {
-          email: user.email,
-          resetUrl: `${process.env.FRONTEND_URL}/reset-password?token=${token}`,
-        },
-      );
-
-      return { token, email: user.email };
-    }
-
-    return null;
-  };
-
-  resetPassword = async (body: ResetPasswordDTO) => {
-    const resetToken = await this.prisma.passwordResetToken.findUnique({
-      where: { token: body.token },
-      include: { user: true },
-    });
-
-    if (!resetToken || resetToken.expiresAt < new Date()) throw new ApiError("Invalid or expired reset token", 400);
-
-    const hashedPassword = await hashPassword(body.password);
-    await this.prisma.$transaction([
-      this.prisma.user.update({ where: { id: resetToken.userId }, data: { password: hashedPassword } }),
-      this.prisma.passwordResetToken.delete({ where: { id: resetToken.id } }),
-    ]);
-
-    return { message: "Password reset success" };
-  };
-
-  private generateAccessToken = (user: { id: number; email: string; role: Role; isVerified: boolean }) => {
-    return jwt.sign({ ...user }, process.env.JWT_ACCESS_SECRET as string, { expiresIn: "20m" });
-  };
-
-  private generateRefreshToken = (user: { id: number }) => {
-    return jwt.sign({ id: user.id }, process.env.JWT_REFRESH_SECRET as string, { expiresIn: "7d" });
-  };
-
-  private generateRandomToken(): string {
-    return crypto.randomBytes(32).toString("hex");
   }
 
-  private getExpiryDate(hours: number = 1): Date {
+  private generateRandomToken(bytes = 32) {
+    return crypto.randomBytes(bytes).toString("hex");
+  }
+
+  private generateRefreshTokenValue() {
+    return this.generateRandomToken(64);
+  }
+
+  private hashToken(token: string) {
+    return crypto.createHash("sha256").update(token).digest("hex");
+  }
+
+  private getExpiryDate(hours = 1) {
     return new Date(Date.now() + hours * 3600000);
   }
 
   private normalizeRole(role?: string | Role): Role {
     if (!role) return Role.USER;
-    const normalized = typeof role === "string" ? role.toUpperCase() : role;
-    if (normalized === Role.USER || normalized === Role.ADMIN) return normalized as Role;
-    throw new ApiError("Invalid role. Use USER or ADMIN", 400);
+
+    const normalized =
+      typeof role === "string" ? role.toUpperCase() : role;
+
+    if (normalized === Role.USER) return Role.USER;
+    if (normalized === Role.ADMIN) return Role.ADMIN;
+
+    throw new ApiError("Invalid role", 400);
   }
 
-  /**
-   * Memetakan data user untuk response API
-   */
   private mapUserResponse(
-    user: User & { company?: { id: number; companyName: string; phone: string | null } | null }, 
+    user: User & {
+      company?: {
+        id: number;
+        companyName: string;
+        phone: string | null;
+      } | null;
+    },
     token?: string
   ) {
     return {
@@ -245,4 +87,316 @@ export class AuthService {
       ...(token && { token }),
     };
   }
+
+  private async issueRefreshToken(userId: number) {
+    const raw = this.generateRefreshTokenValue();
+    const hashed = this.hashToken(raw);
+
+    await this.prisma.refreshToken.upsert({
+      where: { userId },
+      update: {
+        token: hashed,
+        expiredAt: this.getExpiryDate(24 * 7),
+        revokedAt: false,
+      },
+      create: {
+        userId,
+        token: hashed,
+        expiredAt: this.getExpiryDate(24 * 7),
+        revokedAt: false,
+      },
+    });
+
+    return raw;
+  }
+
+  private async rotateRefreshToken(token: string) {
+    const hashed = this.hashToken(token);
+
+    const stored = await this.prisma.refreshToken.findUnique({
+      where: { token: hashed },
+      include: { user: { include: { company: true } } },
+    });
+
+    if (!stored || !stored.user)
+      throw new ApiError("Invalid refresh token", 401);
+
+    if (stored.revokedAt)
+      throw new ApiError("Token revoked", 401);
+
+    if (stored.expiredAt < new Date())
+      throw new ApiError("Token expired", 401);
+
+    const newRaw = this.generateRefreshTokenValue();
+    const newHashed = this.hashToken(newRaw);
+
+    await this.prisma.refreshToken.update({
+      where: { id: stored.id },
+      data: {
+        token: newHashed,
+        expiredAt: this.getExpiryDate(24 * 7),
+        revokedAt: false,
+      },
+    });
+
+    return {
+      user: stored.user,
+      accessToken: this.generateAccessToken(stored.user),
+      refreshToken: newRaw,
+    };
+  }
+
+  private async revokeToken(token: string) {
+    const hashed = this.hashToken(token);
+
+    await this.prisma.refreshToken.updateMany({
+      where: { token: hashed },
+      data: { revokedAt: true },
+    });
+  }
+
+  googleLogin = async (idToken: string, roleInput?: string) => {
+    const role = this.normalizeRole(roleInput);
+
+    const ticket = await this.googleClient.verifyIdToken({
+      idToken,
+      audience: process.env.GOOGLE_CLIENT_ID,
+    });
+
+    const payload = ticket.getPayload();
+
+    if (!payload?.email) {
+      throw new ApiError("Google account has no email", 400);
+    }
+
+    let user = await this.prisma.user.findUnique({
+      where: { email: payload.email },
+      include: { company: true },
+    });
+
+    if (user && user.provider === Provider.CREDENTIALS) {
+      throw new ApiError(
+        "Email already registered with credentials",
+        400
+      );
+    }
+
+    if (!user) {
+      user = await this.prisma.user.create({
+        data: {
+          fullName: payload.name || "",
+          email: payload.email,
+          provider: Provider.GOOGLE,
+          providerId: payload.sub!,
+          password: crypto.randomBytes(16).toString("hex"),
+          role,
+          isVerified: payload.email_verified ?? false,
+          profilePhoto: payload.picture,
+          company:
+            role === Role.ADMIN
+              ? {
+                  create: {
+                    companyName: "New Company",
+                  },
+                }
+              : undefined,
+        },
+        include: { company: true },
+      });
+    }
+
+    const accessToken = this.generateAccessToken(user);
+    const refreshToken = await this.issueRefreshToken(user.id);
+
+    return {
+      message: "Google login success",
+      data: this.mapUserResponse(user, accessToken),
+      refreshToken,
+    };
+  };
+
+  register = async (body: RegisterDTO) => {
+    const existing = await this.prisma.user.findUnique({
+      where: { email: body.email },
+    });
+
+    if (existing) throw new ApiError("Email already exists", 400);
+
+    const role = this.normalizeRole(body.role);
+
+    const hashedPassword = await hashPassword(body.password);
+    const token = this.generateRandomToken();
+
+    const user = await this.prisma.$transaction(async (tx) => {
+      const newUser = await tx.user.create({
+        data: {
+          fullName: body.fullName,
+          email: body.email,
+          password: hashedPassword,
+          role,
+          provider: Provider.CREDENTIALS,
+          company:
+            role === Role.ADMIN
+              ? {
+                  create: {
+                    companyName: body.companyName!,
+                    phone: body.phone,
+                  },
+                }
+              : undefined,
+        },
+        include: { company: true },
+      });
+
+      await tx.verificationToken.create({
+        data: {
+          userId: newUser.id,
+          token,
+          expiresAt: this.getExpiryDate(),
+        },
+      });
+
+      return newUser;
+    });
+
+    await this.mailService.sendEmail(
+      user.email,
+      "Verify Your Email",
+      "verification",
+      {
+        email: user.email,
+        verifyUrl: `${process.env.BASE_URL_FE}/verify-email?token=${token}`,
+      }
+    );
+
+    return {
+      message: "Register success. Please verify your email.",
+      data: this.mapUserResponse(user),
+    };
+  };
+
+  login = async (body: LoginDTO) => {
+    const user = await this.prisma.user.findUnique({
+      where: { email: body.email },
+      include: { company: true },
+    });
+
+    if (
+      !user ||
+      user.provider !== Provider.CREDENTIALS ||
+      !user.password ||
+      !(await comparePassword(body.password, user.password))
+    ) {
+      throw new ApiError("Invalid email or password", 400);
+    }
+
+    if (!user.isVerified) {
+      throw new ApiError("Please verify your email first", 401);
+    }
+
+    const accessToken = this.generateAccessToken(user);
+    const refreshToken = await this.issueRefreshToken(user.id);
+
+    return {
+      message: "Login success",
+      data: this.mapUserResponse(user, accessToken),
+      refreshToken,
+    };
+  };
+
+  forgotPassword = async (email: string) => {
+    const user = await this.prisma.user.findUnique({ where: { email } });
+
+    if (!user || user.provider !== Provider.CREDENTIALS) {
+      return { message: "If email exists, reset link sent" };
+    }
+
+    const token = this.generateRandomToken();
+
+    await this.prisma.passwordResetToken.upsert({
+      where: { userId: user.id },
+      update: {
+        token,
+        expiresAt: this.getExpiryDate(),
+      },
+      create: {
+        userId: user.id,
+        token,
+        expiresAt: this.getExpiryDate(),
+      },
+    });
+
+    await this.mailService.sendEmail(
+      user.email,
+      "Reset Your Password",
+      "reset-password",
+      {
+        email: user.email,
+        resetUrl: `${process.env.BASE_URL_FE}/reset-password?token=${token}`,
+      }
+    );
+
+    return { message: "If email exists, reset link sent" };
+  };
+
+  resetPassword = async (body: ResetPasswordDTO) => {
+    const record = await this.prisma.passwordResetToken.findUnique({
+      where: { token: body.token },
+    });
+
+    if (!record || record.expiresAt < new Date()) {
+      throw new ApiError("Invalid or expired token", 400);
+    }
+
+    const hashedPassword = await hashPassword(body.password);
+
+    await this.prisma.$transaction([
+      this.prisma.user.update({
+        where: { id: record.userId },
+        data: { password: hashedPassword },
+      }),
+      this.prisma.passwordResetToken.delete({
+        where: { id: record.id },
+      }),
+    ]);
+
+    return { message: "Password reset success" };
+  };
+
+  refresh = async (token: string) => {
+    const result = await this.rotateRefreshToken(token);
+
+    return {
+      message: "Token refreshed",
+      data: this.mapUserResponse(result.user, result.accessToken),
+      refreshToken: result.refreshToken,
+    };
+  };
+
+  logout = async (token: string) => {
+    await this.revokeToken(token);
+    return { message: "Logout success" };
+  };
+
+  verifyEmail = async (token: string) => {
+    const record = await this.prisma.verificationToken.findUnique({
+      where: { token },
+    });
+
+    if (!record || record.expiresAt < new Date()) {
+      throw new ApiError("Invalid or expired token", 400);
+    }
+
+    await this.prisma.$transaction([
+      this.prisma.user.update({
+        where: { id: record.userId },
+        data: { isVerified: true },
+      }),
+      this.prisma.verificationToken.delete({
+        where: { id: record.id },
+      }),
+    ]);
+
+    return { message: "Email verified successfully" };
+  };
 }

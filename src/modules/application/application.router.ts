@@ -3,7 +3,9 @@ import { AuthMiddleware } from "../../middlewares/auth.middleware.js";
 import { ValidationMiddleware } from "../../middlewares/validation.middleware.js";
 import { ApplicantController } from "./application.controller.js";
 import {
+  CreateApplicationDTO,
   GetApplicantsDTO,
+  GetMyApplicationsDTO,
   UpdateApplicantStatusDTO,
 } from "./dto/applicant.dto.js";
 
@@ -20,6 +22,46 @@ export class ApplicantRouter {
   }
 
   private initRoutes = () => {
+    // ========================= USER - FEATUR 1 (START) =========================
+    // POST — apply ke job
+    this.router.post(
+      "/job/:jobId",
+      this.authMiddleware.verifyToken(process.env.JWT_ACCESS_SECRET!),
+      this.authMiddleware.verifyVerified(),
+      this.authMiddleware.verifyRole(["USER"]),
+      this.validationMiddleware.validateBody(CreateApplicationDTO),
+      this.applicantController.applyToJob,
+    );
+
+    // GET — list semua lamaran user yang sedang login
+    this.router.get(
+      "/me",
+      this.authMiddleware.verifyToken(process.env.JWT_ACCESS_SECRET!),
+      this.authMiddleware.verifyVerified(),
+      this.authMiddleware.verifyRole(["USER"]),
+      this.validationMiddleware.validateQuery(GetMyApplicationsDTO),
+      this.applicantController.getMyApplications,
+    );
+
+    // GET — detail lamaran user yang sedang login
+    this.router.get(
+      "/me/:id",
+      this.authMiddleware.verifyToken(process.env.JWT_ACCESS_SECRET!),
+      this.authMiddleware.verifyVerified(),
+      this.authMiddleware.verifyRole(["USER"]),
+      this.applicantController.getMyApplicationById,
+    );
+
+    // DELETE — batalkan lamaran (hanya jika status masih PENDING)
+    this.router.delete(
+      "/me/:id",
+      this.authMiddleware.verifyToken(process.env.JWT_ACCESS_SECRET!),
+      this.authMiddleware.verifyVerified(),
+      this.authMiddleware.verifyRole(["USER"]),
+      this.applicantController.withdrawMyApplication,
+    );
+    // ========================= USER - FEATUR 1 (END) =========================
+
     // GET — list pelamar berdasarkan jobId
     this.router.get(
       "/job/:jobId",

@@ -2,17 +2,18 @@ import { Router } from "express";
 import { CVController } from "./cv.controller.js";
 import { AuthMiddleware } from "../../middlewares/auth.middleware.js";
 import { UploadMiddleware } from "../../middlewares/upload.middleware.js";
+import { ValidationMiddleware } from "../../middlewares/validation.middleware.js";
 
 export class CVRouter {
-  private router: Router = Router();
-  private controller = new CVController();
-  private authMiddleware = new AuthMiddleware();
-  private upload = new UploadMiddleware();
+  private router: Router;
 
-  constructor() {
+  constructor(
+    private controller: CVController,
+    private authMiddleware: AuthMiddleware,
+    private uploadMiddleware: UploadMiddleware,
+    private validationMiddleware: ValidationMiddleware,
+  ) {
     this.router = Router();
-    this.controller = new CVController();
-    this.authMiddleware = new AuthMiddleware();
     this.initializeRoutes();
   }
 
@@ -24,7 +25,7 @@ export class CVRouter {
     this.router.post(
       "/",
       verifyToken,
-      this.upload.uploadPDF(2).single("cv"),
+      this.uploadMiddleware.uploadPDF(2).single("cv"),
       this.controller.create,
     );
 
@@ -35,7 +36,7 @@ export class CVRouter {
     this.router.delete("/:id", verifyToken, this.controller.delete);
   }
 
-  getRouter() {
+  public getRouter(): Router {
     return this.router;
   }
 }

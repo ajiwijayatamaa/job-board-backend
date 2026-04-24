@@ -1,22 +1,23 @@
-import { IsEmail, IsNotEmpty, IsOptional, IsString, MinLength } from "class-validator";
+import { IsEmail, IsEnum, IsNotEmpty, IsOptional, IsString, MinLength } from "class-validator";
+import { Role } from "../../../generated/prisma/enums.js";
 
 export class RegisterDTO {
-  @IsNotEmpty()
   @IsString()
+  @IsNotEmpty({ message: "Full name is required" })
   fullName!: string;
 
-  @IsNotEmpty()
-  @IsEmail()
+  @IsEmail({}, { message: "Invalid email format" })
+  @IsNotEmpty({ message: "Email is required" })
   email!: string;
 
-  @IsNotEmpty()
   @IsString()
-  @MinLength(6, { message: "Password must be at least 6 characters long" })
+  @IsNotEmpty({ message: "Password is required" })
+  @MinLength(8, { message: "Password must be at least 8 characters" })
   password!: string;
 
   @IsOptional()
-  @IsString()
-  role?: string;
+  @IsEnum(Role, { message: "Role must be either USER or ADMIN" })
+  role?: Role;
 
   @IsOptional()
   @IsString()
@@ -28,28 +29,27 @@ export class RegisterDTO {
 }
 
 export class LoginDTO {
-  @IsNotEmpty()
-  @IsEmail()
+  @IsEmail({}, { message: "Invalid email format" })
+  @IsNotEmpty({ message: "Email is required" })
   email!: string;
 
-  @IsNotEmpty()
   @IsString()
+  @IsNotEmpty({ message: "Password is required" })
   password!: string;
 }
 
 export class ForgotPasswordDTO {
-  @IsNotEmpty()
-  @IsEmail()
+  @IsEmail({}, { message: "Invalid email format" })
+  @IsNotEmpty({ message: "Email is required" })
   email!: string;
 }
 
 export class ResetPasswordDTO {
-  @IsNotEmpty()
   @IsString()
+  @IsNotEmpty({ message: "Token is required" })
   token!: string;
 
-  @IsNotEmpty()
   @IsString()
-  @MinLength(6, { message: "New password must be at least 6 characters long" })
+  @MinLength(8, { message: "New password must be at least 8 characters" })
   password!: string;
 }

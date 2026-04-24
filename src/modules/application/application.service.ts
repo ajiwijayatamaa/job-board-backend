@@ -1,7 +1,9 @@
 import { Prisma, PrismaClient } from "../../generated/prisma/client.js";
 import { ApiError } from "../../utils/api-error.js";
 import {
+  CreateApplicationDTO,
   GetApplicantsDTO,
+  GetMyApplicationsDTO,
   UpdateApplicantStatusDTO,
 } from "./dto/applicant.dto.js";
 
@@ -14,8 +16,8 @@ export class ApplicantService {
     adminId: number,
   ) => {
     const {
-      page,
-      take,
+      page = 1,
+      take = 10,
       sortBy,
       sortOrder,
       search,
@@ -84,12 +86,15 @@ export class ApplicantService {
       whereClause.expectedSalary = salaryFilter;
     }
 
+    const allowedSortBy = new Set(["appliedAt", "createdAt", "status"]);
+    const effectiveSortBy = allowedSortBy.has(sortBy as string) ? (sortBy as string) : "appliedAt";
+
     const applications = await this.prisma.application.findMany({
       where: whereClause,
       take,
       skip: (page - 1) * take,
       // default: paling awal apply tampil duluan sesuai requirement
-      orderBy: sortBy ? { [sortBy]: sortOrder } : { appliedAt: "asc" },
+      orderBy: { [effectiveSortBy]: sortOrder || "asc" },
       include: {
         user: {
           select: {
@@ -226,5 +231,197 @@ export class ApplicantService {
 
   // ========================= USER - FEATUR 1 (START) =========================
 
-  // ========================= USER - FEATUR 2 (END) =========================
+  applyToJob = async (
+    jobId: number,
+    userId: number,
+    body: CreateApplicationDTO,
+  ) => {
+    const job = await this.prisma.job.findFirst({
+      where: { id: jobId, status: "PUBLISHED", deadline: { gte: new Date() } },
+      select: {
+        id: true,
+        title: true,
+        company: { select: { companyName: true } },
+      },
+    });
+
+    if (!job) throw new ApiError("Lowongan tidak ditemukan atau sudah ditutup", 404);
+
+    const cv = await this.prisma.cV.findFirst({
+      where: {
+        userId,
+        ...(body.cvId ? { id: body.cvId } : { isPrimary: true }),
+      },
+      select: { id: true, cvName: true, fileUrl: true, isPrimary: true },
+    });
+
+    if (!cv) {
+      throw new ApiError(
+        body.cvId
+          ? "CV tidak ditemukan"
+          : "CV utama belum tersedia. Silakan upload CV dan set sebagai primary",
+        404,
+      );
+    }
+
+    try {
+      const application = await this.prisma.application.create({
+        data: {
+          userId,
+          jobId,
+          cvId: cv.id,
+          expectedSalary: body.expectedSalary ?? null,
+        },
+        include: {
+          job: {
+            select: {
+              id: true,
+              title: true,
+              category: true,
+              city: true,
+              deadline: true,
+              status: true,
+              company: { select: { companyName: true } },
+            },
+          },
+          cv: { select: { id: true, cvName: true, fileUrl: true, isPrimary: true } },
+        },
+      });
+
+      return {
+        message: "Berhasil melamar lowongan",
+        data: application,
+      };
+    } catch (err: any) {
+      // Prisma unique constraint: @@unique([userId, jobId])
+      if (err?.code === "P2002") {
+        throw new ApiError("Anda sudah melamar lowongan ini", 400);
+      }
+      throw err;
+    }
+  };
+
+  getMyApplications = async (userId: number, query: GetMyApplicationsDTO) => {
+    const { page = 1, take = 10, sortBy, sortOrder, search, status } = query;
+
+    const whereClause: Prisma.ApplicationWhereInput = {
+      userId,
+      ...(status ? { status } : {}),
+      ...(search
+        ? {
+            OR: [
+              { job: { title: { contains: search, mode: "insensitive" } } },
+              {
+                job: {
+                  company: {
+                    companyName: { contains: search, mode: "insensitive" },
+                  },
+                },
+              },
+            ],
+          }
+        : {}),
+    };
+
+    const allowedSortBy = new Set(["appliedAt", "createdAt", "status"]);
+    const effectiveSortBy = allowedSortBy.has(sortBy) ? sortBy : "appliedAt";
+    const effectiveSortOrder = sortOrder === "asc" ? "asc" : "desc";
+
+    const applications = await this.prisma.application.findMany({
+      where: whereClause,
+      take,
+      skip: (page - 1) * take,
+      orderBy: { [effectiveSortBy]: effectiveSortOrder },
+      include: {
+        job: {
+          select: {
+            id: true,
+            title: true,
+            category: true,
+            city: true,
+            banner: true,
+            deadline: true,
+            status: true,
+            company: { select: { companyName: true } },
+          },
+        },
+        cv: { select: { id: true, cvName: true, fileUrl: true, isPrimary: true } },
+        testResult: { select: { id: true, score: true, createdAt: true } },
+        interview: {
+          select: {
+            id: true,
+            interviewDate: true,
+            locationLink: true,
+            reminderSent: true,
+          },
+        },
+      },
+    });
+
+    const total = await this.prisma.application.count({ where: whereClause });
+
+    return {
+      data: applications,
+      meta: { page, take, total },
+    };
+  };
+
+  getMyApplicationById = async (applicationId: number, userId: number) => {
+    const application = await this.prisma.application.findFirst({
+      where: { id: applicationId, userId },
+      include: {
+        job: {
+          select: {
+            id: true,
+            title: true,
+            description: true,
+            category: true,
+            tags: true,
+            banner: true,
+            salary: true,
+            city: true,
+            deadline: true,
+            status: true,
+            company: {
+              select: {
+                id: true,
+                companyName: true,
+                phone: true,
+                address: true,
+                latitude: true,
+                longitude: true,
+                description: true,
+              },
+            },
+          },
+        },
+        cv: true,
+        testResult: true,
+        interview: true,
+      },
+    });
+
+    if (!application) throw new ApiError("Data lamaran tidak ditemukan", 404);
+
+    return application;
+  };
+
+  withdrawMyApplication = async (applicationId: number, userId: number) => {
+    const application = await this.prisma.application.findFirst({
+      where: { id: applicationId, userId },
+      select: { id: true, status: true },
+    });
+
+    if (!application) throw new ApiError("Data lamaran tidak ditemukan", 404);
+
+    if (application.status !== "PENDING") {
+      throw new ApiError("Lamaran tidak dapat dibatalkan", 400);
+    }
+
+    await this.prisma.application.delete({ where: { id: applicationId } });
+
+    return { message: "Lamaran berhasil dibatalkan" };
+  };
+
+  // ========================= USER - FEATUR 1 (END) =========================
 }

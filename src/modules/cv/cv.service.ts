@@ -1,43 +1,62 @@
-import { prisma } from "../../lib/prisma.js";
+import { PrismaClient } from "../../generated/prisma/client.js";
 import { ApiError } from "../../utils/api-error.js";
-import { CloudinaryService } from "../../modules/cloudinary/cloudinary.service.js";
+import { CloudinaryService } from "../cloudinary/cloudinary.service.js";
 
 export class CVService {
-  private cloudinary = new CloudinaryService();
+  constructor(
+    private prisma: PrismaClient,
+    private cloudinary: CloudinaryService,
+  ) {}
 
-  async create(
-    userId: number,
-    cvName: string,
-    file?: Express.Multer.File
-  ) {
+  create = async (userId: number, cvName: string, file?: Express.Multer.File) => {
+    if (!cvName || !cvName.trim()) {
+      throw new ApiError("CV name is required", 400);
+    }
+
     if (!file) {
       throw new ApiError("CV file is required", 400);
     }
 
-    const { url, publicId } = await this.cloudinary.uploadPDF(
+    const { url } = await this.cloudinary.uploadPDF(
       file,
       "cvs",
-      `cv-${userId}-${Date.now()}.pdf`
+      `cv-${userId}-${Date.now()}.pdf`,
     );
 
-    return prisma.cV.create({
+    const existingPrimary = await this.prisma.cV.findFirst({
+      where: { userId, isPrimary: true },
+      select: { id: true },
+    });
+
+    const cv = await this.prisma.cV.create({
       data: {
         userId,
-        cvName,
+        cvName: cvName.trim(),
         fileUrl: url,
+        isPrimary: !existingPrimary,
       },
     });
-  }
 
-  async getAll(userId: number) {
-    return prisma.cV.findMany({
+    return {
+      message: "Create CV success",
+      data: cv,
+    };
+  };
+
+  getAll = async (userId: number) => {
+    const cvs = await this.prisma.cV.findMany({
       where: { userId },
       orderBy: { createdAt: "desc" },
     });
-  }
 
-  async setPrimary(userId: number, cvId: number) {
-    const cv = await prisma.cV.findFirst({
+    return {
+      message: "Get all CV success",
+      data: cvs,
+    };
+  };
+
+  setPrimary = async (userId: number, cvId: number) => {
+    const cv = await this.prisma.cV.findFirst({
       where: { id: cvId, userId },
     });
 
@@ -45,28 +64,51 @@ export class CVService {
       throw new ApiError("CV not found", 404);
     }
 
-    await prisma.cV.updateMany({
+    await this.prisma.cV.updateMany({
       where: { userId },
       data: { isPrimary: false },
     });
 
-    return prisma.cV.update({
+    const updatedCv = await this.prisma.cV.update({
       where: { id: cvId },
       data: { isPrimary: true },
     });
-  }
 
-  async delete(userId: number, cvId: number) {
-    const cv = await prisma.cV.findFirst({
+    return {
+      message: "Set primary CV success",
+      data: updatedCv,
+    };
+  };
+
+  delete = async (userId: number, cvId: number) => {
+    const cv = await this.prisma.cV.findFirst({
       where: { id: cvId, userId },
     });
 
     if (!cv) {
       throw new ApiError("CV not found", 404);
-    };
+    }
 
-    await prisma.cV.delete({
+    await this.prisma.cV.delete({
       where: { id: cvId },
     });
-  }
+
+    if (cv.isPrimary) {
+      const latestCv = await this.prisma.cV.findFirst({
+        where: { userId },
+        orderBy: { createdAt: "desc" },
+      });
+
+      if (latestCv) {
+        await this.prisma.cV.update({
+          where: { id: latestCv.id },
+          data: { isPrimary: true },
+        });
+      }
+    }
+
+    return {
+      message: "Delete CV success",
+    };
+  };
 }
