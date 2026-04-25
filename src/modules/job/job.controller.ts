@@ -14,7 +14,8 @@ export class JobController {
   // ========================= USER - FEATUR 1 (START) =========================
   getPublicJobs = async (req: Request, res: Response) => {
     const query = plainToInstance(GetPublicJobsDTO, req.query);
-    const result = await this.jobService.getPublicJobs(query);
+    const userId = res.locals.existingUser?.id; // Ambil ID jika user sedang login
+    const result = await this.jobService.getPublicJobs(query, userId);
     res.status(200).send(result);
   };
 

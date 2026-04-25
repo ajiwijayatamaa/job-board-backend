@@ -146,4 +146,19 @@ export class GetPublicJobsDTO extends PaginationQueryParams {
   @Transform(({ value }) => (value ? new Date(value) : undefined))
   @IsDate({ message: "endDate harus berupa tanggal yang valid" })
   endDate?: Date;
+
+  @IsOptional()
+  @Transform(({ value }) => (value ? parseFloat(value) : undefined))
+  @IsNumber({}, { message: "Latitude harus berupa angka" })
+  latitude?: number;
+
+  @IsOptional()
+  @Transform(({ value }) => (value ? parseFloat(value) : undefined))
+  @IsNumber({}, { message: "Longitude harus berupa angka" })
+  longitude?: number;
+
+  @IsOptional()
+  @Transform(({ value }) => (value ? parseFloat(value) : 50)) // Default 50km
+  @IsNumber({}, { message: "Radius harus berupa angka" })
+  radius?: number;
 }
