@@ -8,6 +8,8 @@ import {
   IsNumber,
   IsOptional,
   IsString,
+  Max,
+  Min,
   ValidateNested,
 } from "class-validator";
 import { PaginationQueryParams } from "../../pagination/dto/pagination.dto.js";
@@ -54,6 +56,12 @@ export class CreatePreSelectionTestDTO {
   @ValidateNested({ each: true })
   @Type(() => CreateTestQuestionDTO)
   questions!: CreateTestQuestionDTO[];
+
+  @IsOptional()
+  @IsNumber({}, { message: "Passing score harus berupa angka" })
+  @Min(0, { message: "Passing score tidak boleh negatif" })
+  @Max(100, { message: "Passing score maksimal 100" })
+  passingScore?: number;
 }
 
 export class UpdatePreSelectionTestDTO {
@@ -68,6 +76,12 @@ export class UpdatePreSelectionTestDTO {
   @ValidateNested({ each: true })
   @Type(() => CreateTestQuestionDTO)
   questions?: CreateTestQuestionDTO[];
+
+  @IsOptional()
+  @IsNumber({}, { message: "Passing score harus berupa angka" })
+  @Min(0, { message: "Passing score tidak boleh negatif" })
+  @Max(100, { message: "Passing score maksimal 100" })
+  passingScore?: number;
 }
 
 export class AnswerItemDTO {

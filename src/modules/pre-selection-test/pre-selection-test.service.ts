@@ -49,6 +49,7 @@ export class PreSelectionTestService {
         data: {
           jobId: body.jobId,
           title: body.title,
+          passingScore: body.passingScore ?? 75,
           questions: { create: this.mapQuestions(body.questions) },
         },
         include: { questions: { include: { options: true } } },
@@ -90,6 +91,7 @@ export class PreSelectionTestService {
         where: { id },
         data: {
           title: body.title,
+          passingScore: body.passingScore,
           ...(body.questions && {
             questions: { create: this.mapQuestions(body.questions) },
           }),
@@ -251,6 +253,7 @@ export class PreSelectionTestService {
       throw new ApiError("Terdapat soal yang tidak valid", 400);
 
     const score = this.calculateScore(test.questions, answers);
+    const isPassed = score >= test.passingScore;
 
     return await this.prisma.$transaction(async (tx) => {
       const existingResult = await tx.testResult.findUnique({
@@ -262,7 +265,7 @@ export class PreSelectionTestService {
         throw new ApiError("Anda sudah mengerjakan tes ini", 400);
 
       const result = await tx.testResult.create({
-        data: { userId, preSelectionTestId: test.id, score },
+        data: { userId, preSelectionTestId: test.id, score, isPassed },
       });
 
       // ✅ simpan semua jawaban user
@@ -279,7 +282,11 @@ export class PreSelectionTestService {
         data: { testResultId: result.id },
       });
 
-      return result;
+      return {
+        ...result,
+        passingScore: test.passingScore,
+        isPassed,
+      };
     });
   };
   // ========================= USER - FEATUR 1 (END) =========================

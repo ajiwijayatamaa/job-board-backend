@@ -15,7 +15,7 @@ datasource db {
 model User {
   id           Int       @id @default(autoincrement())
   email        String    @unique @db.VarChar(255)
-  password     String?    @db.VarChar(255)
+  password     String?   @db.VarChar(255)
   role         Role      @default(USER)
   provider     Provider  @default(CREDENTIALS)
   providerId   String?
@@ -118,10 +118,11 @@ model Job {
 }
 
 model PreSelectionTest {
-  id    Int    @id @default(autoincrement())
-  jobId Int    @unique @map("job_id")
-  job   Job    @relation(fields: [jobId], references: [id], onDelete: Cascade)
-  title String @db.VarChar(255)
+  id           Int    @id @default(autoincrement())
+  jobId        Int    @unique @map("job_id")
+  job          Job    @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  title        String @db.VarChar(255)
+  passingScore Int    @default(75) @map("passing_score")
 
   questions   TestQuestion[]
   testResults TestResult[]
@@ -209,6 +210,7 @@ model TestResult {
   userId             Int              @map("user_id")
   user               User             @relation(fields: [userId], references: [id], onDelete: Cascade)
   score              Decimal          @db.Decimal(5, 2)
+  isPassed           Boolean          @default(false) @map("is_passed")
   createdAt          DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
 
   application Application? // one-to-one 
