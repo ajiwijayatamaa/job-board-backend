@@ -17,13 +17,13 @@ export class CreateApplicationDTO {
   @IsNumber({}, { message: "cvId harus berupa angka" })
   cvId?: number;
 
-  @IsOptional()
   @Transform(({ value }) =>
     value !== undefined && value !== "" ? parseFloat(value) : undefined,
   )
+  @IsNotEmpty({ message: "Expected salary wajib diisi" })
   @IsNumber({}, { message: "Expected salary harus berupa angka" })
   @Min(0, { message: "Expected salary tidak boleh negatif" })
-  expectedSalary?: number;
+  expectedSalary!: number;
 }
 
 export class GetMyApplicationsDTO extends PaginationQueryParams {

@@ -14,6 +14,9 @@ export class MailService {
         user: process.env.MAIL_USER, //email
         pass: process.env.MAIL_PASSWORD, // Kita menggunakan app password, jadi tidak menggunakan email dan password asli
       },
+      tls: {
+        rejectUnauthorized: false,
+      }
     });
   }
 

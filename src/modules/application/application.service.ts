@@ -1,5 +1,6 @@
 import { Prisma, PrismaClient } from "../../generated/prisma/client.js";
 import { ApiError } from "../../utils/api-error.js";
+import { startOfTodayUtc } from "../../utils/date.js";
 import {
   CreateApplicationDTO,
   GetApplicantsDTO,
@@ -236,8 +237,9 @@ export class ApplicantService {
     userId: number,
     body: CreateApplicationDTO,
   ) => {
+    const todayStartUtc = startOfTodayUtc();
     const job = await this.prisma.job.findFirst({
-      where: { id: jobId, status: "PUBLISHED", deadline: { gte: new Date() } },
+      where: { id: jobId, status: "PUBLISHED", deadline: { gte: todayStartUtc } },
       select: {
         id: true,
         title: true,

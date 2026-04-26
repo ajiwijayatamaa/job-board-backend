@@ -1,6 +1,7 @@
 import { PrismaClient } from "../../generated/prisma/client.js";
 import { Role } from "../../generated/prisma/enums.js";
 import { ApiError } from "../../utils/api-error.js";
+import { startOfTodayUtc } from "../../utils/date.js";
 import { CloudinaryService } from "../cloudinary/cloudinary.service.js";
 
 export class CompanyService {
@@ -8,6 +9,31 @@ export class CompanyService {
     private prisma: PrismaClient,
     private cloudinaryService: CloudinaryService,
   ) {}
+
+  getPublicCompanies = async () => {
+    const todayStartUtc = startOfTodayUtc();
+    const companies = await this.prisma.company.findMany({
+      where: {
+        jobs: {
+          some: {
+            status: "PUBLISHED",
+            deadline: { gte: todayStartUtc }, // Hanya lowongan yang masih aktif
+          },
+        },
+      },
+      include: {
+        _count: {
+          select: {
+            jobs: {
+              where: { status: "PUBLISHED", deadline: { gte: todayStartUtc } },
+            },
+          },
+        },
+      },
+      orderBy: { jobs: { _count: "desc" } }, // Urutkan berdasarkan jumlah lowongan yang dipublikasikan
+    });
+    return { data: companies };
+  };
 
   create = async (
     adminId: number,
@@ -79,10 +105,21 @@ export class CompanyService {
   };
 
   getById = async (companyId: number) => {
+    const todayStartUtc = startOfTodayUtc();
     const company = await this.prisma.company.findUnique({
       where: { id: companyId },
       include: {
         admin: { select: { id: true, email: true, fullName: true, role: true } },
+        _count: {
+          select: {
+            jobs: {
+              where: { status: "PUBLISHED", deadline: { gte: todayStartUtc } },
+            },
+          },
+        },
+        // Assuming these fields exist in your Prisma schema for Company
+        // If not, you'll need to add them to your schema.prisma
+        // e.g., industry: true, size: true, founded: true, website: true, benefits: true,
       },
     });
 
