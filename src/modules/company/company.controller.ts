@@ -5,6 +5,33 @@ import { ApiError } from "../../utils/api-error.js";
 export class CompanyController {
   constructor(private service: CompanyService) {}
 
+  getPublicCompanies = async (
+    _req: Request,
+    res: Response,
+    next: NextFunction,
+  ) => {
+    try {
+      const result = await this.service.getPublicCompanies();
+      res.status(200).json(result);
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  getPublicCompanyById = async (
+    req: Request,
+    res: Response,
+    next: NextFunction,
+  ) => {
+    try {
+      const companyId = Number(req.params.id);
+      const result = await this.service.getById(companyId); // Reusing existing service method
+      res.status(200).json(result);
+    } catch (error) {
+      next(error);
+    }
+  };
+
   create = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const adminId = res.locals.existingUser?.id;

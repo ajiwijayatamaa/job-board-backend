@@ -1,5 +1,6 @@
 import { Prisma, PrismaClient } from "../../generated/prisma/client.js";
 import { ApiError } from "../../utils/api-error.js";
+import { startOfTodayUtc } from "../../utils/date.js";
 import { CloudinaryService } from "../cloudinary/cloudinary.service.js";
 import {
   CreateJobDTO,
@@ -192,9 +193,12 @@ export class JobService {
   // ========================= USER - FEATUR 1 (START) =========================
 
   getPublicJobs = async (query: GetPublicJobsDTO, userId?: number) => {
+    const todayStartUtc = startOfTodayUtc();
+    const pageNum = Math.max(Number(query.page) || 1, 1);
+    const takeNum = Math.max(Number(query.take) || 10, 1);
+    const offset = (pageNum - 1) * takeNum;
+
     let {
-      page,
-      take,
       sortBy,
       sortOrder,
       search,
@@ -208,8 +212,8 @@ export class JobService {
       radius = 50, // Default to 50km
     } = query;
 
-    // Fallback: Jika koordinat tidak dikirim frontend, ambil dari profil user (jika login)
-    if (latitude === undefined && longitude === undefined && userId) {
+    // Fallback: Jika koordinat tidak dikirim frontend (falsy), ambil dari profil user (jika login)
+    if (!latitude && !longitude && userId) {
       const user = await this.prisma.user.findUnique({
         where: { id: userId },
         // Pastikan kolom latitude/longitude sudah ditambahkan di schema User Anda
@@ -223,7 +227,7 @@ export class JobService {
     }
 
     // Jika ada koordinat, gunakan Raw Query untuk Haversine distance
-    if (latitude !== undefined && longitude !== undefined) {
+    if (latitude && longitude) {
       // --- BOUNDING BOX CALCULATION ---
       // Approx 1 degree latitude = 111km
       const deltaLat = radius / 111;
@@ -235,21 +239,20 @@ export class JobService {
       const minLng = longitude - deltaLng;
       const maxLng = longitude + deltaLng;
 
-      const pageNum = Math.max(Number(page) || 1, 1);
-      const takeNum = Math.max(Number(take) || 10, 1);
-      const offset = (pageNum - 1) * takeNum;
-
       // Bangun filter secara dinamis untuk Raw SQL
       const filters: Prisma.Sql[] = [
         Prisma.sql`j.status = 'PUBLISHED'`,
-        Prisma.sql`j.deadline >= NOW()`,
+        Prisma.sql`j.deadline >= (date_trunc('day', now() at time zone 'UTC') at time zone 'UTC')`,
       ];
 
       // Bounding Box filter (High performance using indexes)
-      filters.push(Prisma.sql`CAST(c.latitude AS DOUBLE PRECISION) >= ${minLat}`);
-      filters.push(Prisma.sql`CAST(c.latitude AS DOUBLE PRECISION) <= ${maxLat}`);
-      filters.push(Prisma.sql`CAST(c.longitude AS DOUBLE PRECISION) >= ${minLng}`);
-      filters.push(Prisma.sql`CAST(c.longitude AS DOUBLE PRECISION) <= ${maxLng}`);
+      // Tambahkan pengecekan agar tidak null di database
+      filters.push(Prisma.sql`c.latitude IS NOT NULL AND c.longitude IS NOT NULL`);
+      filters.push(Prisma.sql`c.latitude <> '' AND c.longitude <> ''`);
+      filters.push(Prisma.sql`CAST(NULLIF(c.latitude, '') AS DOUBLE PRECISION) >= ${minLat}`);
+      filters.push(Prisma.sql`CAST(NULLIF(c.latitude, '') AS DOUBLE PRECISION) <= ${maxLat}`);
+      filters.push(Prisma.sql`CAST(NULLIF(c.longitude, '') AS DOUBLE PRECISION) >= ${minLng}`);
+      filters.push(Prisma.sql`CAST(NULLIF(c.longitude, '') AS DOUBLE PRECISION) <= ${maxLng}`);
 
       if (search) filters.push(Prisma.sql`j.title ILIKE ${`%${search}%`}`);
       if (category) filters.push(Prisma.sql`j.category ILIKE ${`%${category}%`}`);
@@ -278,9 +281,9 @@ export class JobService {
           ) AS company,
           (SELECT CAST(COUNT(*) AS INT) FROM applications a WHERE a.job_id = j.id) AS application_count,
           (6371 * acos(
-            cos(radians(${latitude})) * cos(radians(CAST(c.latitude AS DOUBLE PRECISION))) *
-            cos(radians(CAST(c.longitude AS DOUBLE PRECISION)) - radians(${longitude})) +
-            sin(radians(${latitude})) * sin(radians(CAST(c.latitude AS DOUBLE PRECISION)))
+            cos(radians(${latitude})) * cos(radians(CAST(NULLIF(c.latitude, '') AS DOUBLE PRECISION))) *
+            cos(radians(CAST(NULLIF(c.longitude, '') AS DOUBLE PRECISION)) - radians(${longitude})) +
+            sin(radians(${latitude})) * sin(radians(CAST(NULLIF(c.latitude, '') AS DOUBLE PRECISION)))
           )) AS distance
         FROM jobs j
         JOIN companies c ON j.company_id = c.id
@@ -309,7 +312,7 @@ export class JobService {
 
     const whereClause: Prisma.JobWhereInput = {
       status: "PUBLISHED",
-      deadline: { gte: new Date() },
+      deadline: { gte: todayStartUtc },
     };
 
     if (search) {
@@ -338,8 +341,8 @@ export class JobService {
 
     const jobs = await this.prisma.job.findMany({
       where: whereClause,
-      take,
-      skip: (page - 1) * take,
+      take: takeNum,
+      skip: offset,
       orderBy: { [effectiveSortBy]: effectiveSortOrder },
       include: {
         company: {
@@ -361,13 +364,14 @@ export class JobService {
 
     return {
       data: jobs,
-      meta: { page, take, total },
+      meta: { page: pageNum, take: takeNum, total },
     };
   };
 
   getPublicJobById = async (id: number) => {
+    const todayStartUtc = startOfTodayUtc();
     const job = await this.prisma.job.findFirst({
-      where: { id, status: "PUBLISHED", deadline: { gte: new Date() } },
+      where: { id, status: "PUBLISHED", deadline: { gte: todayStartUtc } },
       include: {
         company: {
           select: {
@@ -387,6 +391,26 @@ export class JobService {
     if (!job) throw new ApiError("Lowongan tidak ditemukan atau sudah ditutup", 404);
 
     return job;
+  };
+
+  getPublicJobsByCompanyId = async (companyId: number) => {
+    const todayStartUtc = startOfTodayUtc();
+    const jobs = await this.prisma.job.findMany({
+      where: {
+        companyId: companyId,
+        status: "PUBLISHED",
+        deadline: { gte: todayStartUtc },
+      },
+      select: {
+        id: true,
+        title: true,
+        city: true, // Assuming location in frontend maps to city in backend
+        salary: true,
+        createdAt: true,
+      },
+      orderBy: { createdAt: "desc" },
+    });
+    return { data: jobs };
   };
 
   // ========================= USER - FEATUR 1 (END) =========================

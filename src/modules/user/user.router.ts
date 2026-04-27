@@ -37,7 +37,7 @@ export class UserRouter {
       "/profile-picture",
       this.authMiddleware.verifyToken(process.env.JWT_ACCESS_SECRET!),
       this.authMiddleware.verifyVerified(),
-      this.uploadMiddleware.uploadImage(2).single("profilePhoto"),
+      this.uploadMiddleware.uploadImage(1).single("profilePhoto"),
       this.controller.updateProfilePicture
     );
   };

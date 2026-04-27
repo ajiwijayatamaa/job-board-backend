@@ -23,7 +23,7 @@ import { AuthRouter } from "./modules/auth/auth.router.js";
 import { AuthService } from "./modules/auth/auth.service.js";
 import { CloudinaryService } from "./modules/cloudinary/cloudinary.service.js";
 import { CompanyController } from "./modules/company/company.controller.js";
-import { CompanyRouter } from "./modules/company/company.router.js";
+import { CompanyRouter, CompanyPublicRouter } from "./modules/company/company.router.js";
 import { CompanyService } from "./modules/company/company.service.js";
 import { CVController } from "./modules/cv/cv.controller.js";
 import { CVRouter } from "./modules/cv/cv.router.js";
@@ -32,7 +32,7 @@ import { InterviewController } from "./modules/interview/interview.controller.js
 import { InterviewRouter } from "./modules/interview/interview.router.js";
 import { InterviewService } from "./modules/interview/interview.service.js";
 import { JobController } from "./modules/job/job.controller.js";
-import { JobRouter } from "./modules/job/job.router.js";
+import { JobRouter, JobPublicRouter } from "./modules/job/job.router.js";
 import { JobService } from "./modules/job/job.service.js";
 import { MailService } from "./modules/mail/mail.service.js";
 import { PreSelectionTestController } from "./modules/pre-selection-test/pre-selection-test.controller.js";
@@ -110,6 +110,11 @@ export class App {
       uploadMiddleware,
       validationMiddleware,
     );
+    const jobPublicRouter = new JobPublicRouter(
+      jobController,
+      authMiddleware,
+      validationMiddleware,
+    );
     const applicationsRouter = new ApplicantRouter(
       applicantController,
       authMiddleware,
@@ -142,6 +147,12 @@ export class App {
       uploadMiddleware,
       validationMiddleware,
     );
+    const companyPublicRouter = new CompanyPublicRouter(
+      companyController,
+      jobController, // Inject jobController here
+      authMiddleware,
+      validationMiddleware,
+    );
 
     const cvRouter = new CVRouter(
       cvController,
@@ -153,6 +164,8 @@ export class App {
     // entry point — USER (Feature 1)
     this.app.use("/auth", authRouter.getRouter());
     this.app.use("/user", userRouter.getRouter());
+    this.app.use("/public/companies", companyPublicRouter.getRouter());
+    this.app.use("/public/jobs", jobPublicRouter.getRouter());
     this.app.use("/companies", companyRouter.getRouter());
     this.app.use("/cvs", cvRouter.getRouter());
     this.app.use("/applications", applicationsRouter.getRouter());

@@ -1,5 +1,5 @@
 import { plainToInstance } from "class-transformer";
-import { Request, Response } from "express";
+import { NextFunction, Request, Response } from "express";
 import { JobService } from "./job.service.js";
 import {
   GetJobsDTO,
@@ -12,9 +12,23 @@ export class JobController {
   constructor(private jobService: JobService) {}
 
   // ========================= USER - FEATUR 1 (START) =========================
+  getPublicJobsByCompanyId = async (
+    req: Request,
+    res: Response,
+    next: NextFunction,
+  ) => {
+    try {
+      const companyId = Number(req.params.id); // Changed from companyId to id to match router path
+      const result = await this.jobService.getPublicJobsByCompanyId(companyId);
+      res.status(200).json(result);
+    } catch (error) {
+      next(error);
+    }
+  };
+
   getPublicJobs = async (req: Request, res: Response) => {
     const query = plainToInstance(GetPublicJobsDTO, req.query);
-    const userId = res.locals.existingUser?.id; // Ambil ID jika user sedang login
+    const userId = res.locals.existingUser?.id;
     const result = await this.jobService.getPublicJobs(query, userId);
     res.status(200).send(result);
   };
