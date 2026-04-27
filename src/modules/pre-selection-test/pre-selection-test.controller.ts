@@ -86,4 +86,14 @@ export class PreSelectionTestController {
     const result = await this.preSelectionTestService.submitTest(body, userId);
     res.status(201).send(result);
   };
+
+  getMyTestResult = async (req: Request, res: Response) => {
+    const jobId = Number(req.params.jobId);
+    const userId = res.locals.existingUser.id;
+    const result = await this.preSelectionTestService.getMyTestResult(
+      jobId,
+      userId,
+    );
+    res.status(200).send(result);
+  };
 }

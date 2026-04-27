@@ -73,6 +73,14 @@ export class PreSelectionTestRouter {
 
     // ── USER ───────────────────────────────────────────────
     this.router.get(
+      "/my-result/:jobId",
+      this.authMiddleware.verifyToken(process.env.JWT_ACCESS_SECRET!),
+      this.authMiddleware.verifyVerified(),
+      this.authMiddleware.verifyRole(["USER"]),
+      this.preSelectionTestController.getMyTestResult,
+    );
+
+    this.router.get(
       "/take/:jobId",
       this.authMiddleware.verifyToken(process.env.JWT_ACCESS_SECRET!),
       this.authMiddleware.verifyVerified(),

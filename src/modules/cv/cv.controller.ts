@@ -24,6 +24,11 @@ export class CVController {
     res.status(200).send(result);
   };
 
+  streamFile = async (req: Request, res: Response) => {
+    const cvId = Number(req.params.id);
+    await this.service.streamFile(cvId, res);
+  };
+
   delete = async (req: Request, res: Response) => {
     const userId = res.locals.existingUser.id;
     const cvId = Number(req.params.id);
