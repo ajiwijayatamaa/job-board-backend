@@ -268,7 +268,6 @@ export class PreSelectionTestService {
         data: { userId, preSelectionTestId: test.id, score, isPassed },
       });
 
-      // ✅ simpan semua jawaban user
       await tx.testAnswer.createMany({
         data: answers.map((a) => ({
           testResultId: result.id,
@@ -277,17 +276,37 @@ export class PreSelectionTestService {
         })),
       });
 
-      await tx.application.updateMany({
-        where: { userId, jobId },
-        data: { testResultId: result.id },
-      });
-
       return {
-        ...result,
+        testResultId: result.id, // ← FE simpan ini, kirim saat apply
+        score: result.score,
+        isPassed: result.isPassed,
         passingScore: test.passingScore,
-        isPassed,
       };
     });
+  };
+
+  getMyTestResult = async (jobId: number, userId: number) => {
+    const test = await this.prisma.preSelectionTest.findFirst({
+      where: { jobId },
+    });
+    if (!test) throw new ApiError("Test tidak ditemukan", 404);
+
+    const result = await this.prisma.testResult.findUnique({
+      where: {
+        userId_preSelectionTestId: {
+          userId,
+          preSelectionTestId: test.id,
+        },
+      },
+    });
+    if (!result) throw new ApiError("Belum mengerjakan tes", 404);
+
+    return {
+      testResultId: result.id,
+      score: result.score,
+      isPassed: result.isPassed,
+      passingScore: test.passingScore,
+    };
   };
   // ========================= USER - FEATUR 1 (END) =========================
 }

@@ -1,3 +1,5 @@
+import axios from "axios";
+import { Response } from "express";
 import { PrismaClient } from "../../generated/prisma/client.js";
 import { ApiError } from "../../utils/api-error.js";
 import { CloudinaryService } from "../cloudinary/cloudinary.service.js";
@@ -8,7 +10,11 @@ export class CVService {
     private cloudinary: CloudinaryService,
   ) {}
 
-  create = async (userId: number, cvName: string, file?: Express.Multer.File) => {
+  create = async (
+    userId: number,
+    cvName: string,
+    file?: Express.Multer.File,
+  ) => {
     if (!cvName || !cvName.trim()) {
       throw new ApiError("CV name is required", 400);
     }
@@ -20,7 +26,7 @@ export class CVService {
     const { url } = await this.cloudinary.uploadPDF(
       file,
       "cvs",
-      `cv-${userId}-${Date.now()}.pdf`,
+      `cv-${userId}-${Date.now()}`, // ← tanpa .pdf agar extractPublicIdFromUrl konsisten
     );
 
     const existingPrimary = await this.prisma.cV.findFirst({
@@ -78,6 +84,16 @@ export class CVService {
       message: "Set primary CV success",
       data: updatedCv,
     };
+  };
+
+  streamFile = async (cvId: number, res: Response) => {
+    const cv = await this.prisma.cV.findFirst({
+      where: { id: cvId },
+    });
+
+    if (!cv) throw new ApiError("CV not found", 404);
+
+    res.redirect(cv.fileUrl);
   };
 
   delete = async (userId: number, cvId: number) => {

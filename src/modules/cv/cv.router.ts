@@ -29,6 +29,9 @@ export class CVRouter {
       this.controller.create,
     );
 
+    // ⚠️ /:id/file harus SEBELUM / agar tidak bentrok dengan GET /
+    this.router.get("/:id/file", this.controller.streamFile);
+
     this.router.get("/", verifyToken, this.controller.getAll);
 
     this.router.patch("/:id/primary", verifyToken, this.controller.setPrimary);
