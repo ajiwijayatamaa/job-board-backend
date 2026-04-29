@@ -26,7 +26,12 @@ export class PreSelectionTestService {
   private calculateScore(questions: any[], answers: any[]): number {
     const correct = answers.reduce((count: number, ans: any) => {
       const q = questions.find((quest) => quest.id === ans.questionId);
-      return q?.correctAnswer === ans.selectedAnswer ? count + 1 : count;
+      if (!q) return count;
+      // ✅ cari option berdasarkan id, cek isCorrect
+      const selectedOption = q.options.find(
+        (o: any) => o.id === Number(ans.selectedAnswer),
+      );
+      return selectedOption?.isCorrect ? count + 1 : count;
     }, 0);
     return (correct / questions.length) * 100;
   }
@@ -239,7 +244,11 @@ export class PreSelectionTestService {
     const { jobId, answers } = body;
     const test = await this.prisma.preSelectionTest.findFirst({
       where: { jobId, job: { preTest: true, status: "PUBLISHED" } },
-      include: { questions: true },
+      include: {
+        questions: {
+          include: { options: true }, // ✅ calculateScore butuh q.options
+        },
+      },
     });
 
     if (!test || test.questions.length === 0)
