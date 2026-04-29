@@ -88,7 +88,9 @@ export class ApplicantService {
     }
 
     const allowedSortBy = new Set(["appliedAt", "createdAt", "status"]);
-    const effectiveSortBy = allowedSortBy.has(sortBy as string) ? (sortBy as string) : "appliedAt";
+    const effectiveSortBy = allowedSortBy.has(sortBy as string)
+      ? (sortBy as string)
+      : "appliedAt";
 
     const applications = await this.prisma.application.findMany({
       where: whereClause,
@@ -239,7 +241,11 @@ export class ApplicantService {
   ) => {
     const todayStartUtc = startOfTodayUtc();
     const job = await this.prisma.job.findFirst({
-      where: { id: jobId, status: "PUBLISHED", deadline: { gte: todayStartUtc } },
+      where: {
+        id: jobId,
+        status: "PUBLISHED",
+        deadline: { gte: todayStartUtc },
+      },
       select: {
         id: true,
         title: true,
@@ -247,7 +253,8 @@ export class ApplicantService {
       },
     });
 
-    if (!job) throw new ApiError("Lowongan tidak ditemukan atau sudah ditutup", 404);
+    if (!job)
+      throw new ApiError("Lowongan tidak ditemukan atau sudah ditutup", 404);
 
     const cv = await this.prisma.cV.findFirst({
       where: {
@@ -286,7 +293,9 @@ export class ApplicantService {
               company: { select: { companyName: true } },
             },
           },
-          cv: { select: { id: true, cvName: true, fileUrl: true, isPrimary: true } },
+          cv: {
+            select: { id: true, cvName: true, fileUrl: true, isPrimary: true },
+          },
         },
       });
 
@@ -347,7 +356,9 @@ export class ApplicantService {
             company: { select: { companyName: true } },
           },
         },
-        cv: { select: { id: true, cvName: true, fileUrl: true, isPrimary: true } },
+        cv: {
+          select: { id: true, cvName: true, fileUrl: true, isPrimary: true },
+        },
         testResult: { select: { id: true, score: true, createdAt: true } },
         interview: {
           select: {
