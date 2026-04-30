@@ -5,7 +5,7 @@ export const corsOptions: CorsOptions = {
     "http://localhost:5173",
     "http://localhost:3000",
     process.env.BASE_URL_FE!,
-    "https://job-board-frontend-weld.vercel.app",
+    "https://pencarikerja.vercel.app",
   ], // tambahin lagi url nya kalau udah di deploy
   credentials: true,
 };
