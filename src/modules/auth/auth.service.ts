@@ -181,6 +181,10 @@ export class AuthService {
       );
     }
 
+    if (user && roleInput && user.role !== role) {
+      throw new ApiError("Account role does not match", 403);
+    }
+
     if (!user) {
       user = await this.prisma.user.create({
         data: {
@@ -276,6 +280,8 @@ export class AuthService {
   };
 
   login = async (body: LoginDTO) => {
+    const requestedRole = this.normalizeRole(body.role);
+
     const user = await this.prisma.user.findUnique({
       where: { email: body.email },
       include: { company: true },
@@ -292,6 +298,10 @@ export class AuthService {
 
     if (!user.isVerified) {
       throw new ApiError("Please verify your email first", 401);
+    }
+
+    if (body.role && user.role !== requestedRole) {
+      throw new ApiError("Account role does not match", 403);
     }
 
     const accessToken = this.generateAccessToken(user);

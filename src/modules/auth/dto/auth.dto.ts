@@ -36,6 +36,10 @@ export class LoginDTO {
   @IsString()
   @IsNotEmpty({ message: "Password is required" })
   password!: string;
+
+  @IsOptional()
+  @IsEnum(Role, { message: "Role must be either USER or ADMIN" })
+  role?: Role;
 }
 
 export class ForgotPasswordDTO {
